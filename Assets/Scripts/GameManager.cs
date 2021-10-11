@@ -7,8 +7,7 @@ public class GameManager : MonoBehaviour
     public float timeStep;
     public WorldTime worldTime { get; private set; }
 
-    // Start is called before the first frame update
-    void Awake()
+    public void Awake()
     {
         worldTime = new WorldTime();
     }

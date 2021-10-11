@@ -4,8 +4,8 @@ using UnityEngine;
 
 public class Schedule
 {
-    private float[] dayProgress;
-    private Citizen.CitizenAction[] allocatedAction;
+    public float[] dayProgress { get; private set; }
+    public Citizen.CitizenAction[] allocatedAction { get; private set; }
 
     public Schedule()
     {
@@ -22,15 +22,15 @@ public class Schedule
 
             var action = Citizen.CitizenAction.Play;
 
-            if (i >= 23 && i < 7)
+            if ((i >= 0 && i < 7 / Constants.TIMELSLICEUNIT) || (i >= 23 / Constants.TIMELSLICEUNIT))
             {
                 action = Citizen.CitizenAction.Sleep;
             }
-            else if (i >= 9 && i < 17)
+            else if (i >= 9 / Constants.TIMELSLICEUNIT && i < 17 / Constants.TIMELSLICEUNIT)
             {
                 action = Citizen.CitizenAction.Work;
             }
-            else if ((i >= 7 && i < 9) || (i >= 17 && i < 23))
+            else if ((i >= 7 / Constants.TIMELSLICEUNIT && i < 9 / Constants.TIMELSLICEUNIT) || (i >= 17 / Constants.TIMELSLICEUNIT && i < 23 / Constants.TIMELSLICEUNIT))
             {
                 action = Citizen.CitizenAction.Play;
             }

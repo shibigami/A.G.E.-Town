@@ -11,7 +11,7 @@ public class Node
     public Node parentNode { get; private set; }
 
 
-    private Node() { }
+    public Node() { }
 
     public Node(Vector2 position)
     {
