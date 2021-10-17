@@ -28,15 +28,20 @@ public class Node
         f = 0;
     }
 
-    public void SetStartEndNodes(Vector2 start, Vector2 end)
+    public void SetStartEndNodes(Vector2 start, Vector2 end, float costToMove)
     {
-        g = (location - start).magnitude;
-        h = (location - end).magnitude;
+        g = Mathf.Sqrt(Mathf.Pow((start.x - location.x), 2)) + Mathf.Sqrt(Mathf.Pow((start.y - location.y), 2)) + costToMove;
+        h = Mathf.Sqrt(Mathf.Pow((end.x - location.x), 2)) + Mathf.Sqrt(Mathf.Pow((end.y - location.y), 2));
         f = g + h;
     }
 
     public void SetParent(Node parent)
     {
         parentNode = parent;
+    }
+
+    public void SetLocation(Vector2 locationPoint)
+    {
+        location = locationPoint;
     }
 }

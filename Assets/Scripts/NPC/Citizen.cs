@@ -35,16 +35,16 @@ public class Citizen : MonoBehaviour
 
     private UI ui;
 
-    private PathFinder pathFinder;
+    private PathFindingJob pathFindingJob;
     private int pathIndex;
+    private bool isCalculatingPath;
 
     // Start is called before the first frame update
     void Start()
     {
-        //test path
-        pathFinder = new PathFinder();
-        moveToPoints = pathFinder.FindPath(new Node(transform.position.x, transform.position.z),
-            new Node(GameObject.Find("house1").transform.position.x, GameObject.Find("house1").transform.position.z));
+        //pathfinder
+        isCalculatingPath = false;
+
         //animator allocation
         try
         {
@@ -65,6 +65,29 @@ public class Citizen : MonoBehaviour
 
         //ui controls
         ui = GameObject.FindGameObjectWithTag("GameController").GetComponent<UI>();
+    }
+
+    private IEnumerator FindPath()
+    {
+        yield return StartCoroutine(pathFindingJob.WaitFor());
+        moveToPoints = pathFindingJob.path;
+        pathFindingJob = null;
+        isCalculatingPath = false;
+    }
+
+    private void CalculatePath()
+    {
+        if (!isCalculatingPath)
+        {
+            isCalculatingPath = true;
+            pathFindingJob = new PathFindingJob();
+            var startNode = new Node(transform.position.x, transform.position.z);
+            var endNode = new Node(GameObject.Find("target").transform.position.x, GameObject.Find("target").transform.position.z);
+            pathFindingJob.startNode = startNode;
+            pathFindingJob.endNode = endNode;
+            pathFindingJob.Start();
+            StartCoroutine("FindPath");
+        }
     }
 
     // Update is called once per frame
@@ -88,7 +111,12 @@ public class Citizen : MonoBehaviour
         {
             case CitizenStates.Waiting:
                 {
-                    if (moveToPoints != null && moveToPoints.Length > 0)
+                    if (Input.GetButtonDown("Fire1") && !isCalculatingPath)
+                    {
+                        CalculatePath();
+                    }
+
+                    if (moveToPoints != null && moveToPoints.Length > 0 && !isCalculatingPath)
                     {
                         pathIndex = 0;
                         myState = CitizenStates.Moving;
@@ -102,8 +130,12 @@ public class Citizen : MonoBehaviour
                         animator.SetBool("run", true);
                     }
 
+                    var distanceToPoint = new Vector2(
+                        (moveToPoints[pathIndex].location.x - transform.position.x),
+                        (moveToPoints[pathIndex].location.y - transform.position.z));
+
                     //move to next point
-                    if ((transform.position.x != moveToPoints[pathIndex].location.x) && (transform.position.y != moveToPoints[pathIndex].location.y))
+                    if (distanceToPoint.magnitude > 0.2f)
                     {
                         var targetPoint = new Vector3(moveToPoints[pathIndex].location.x, transform.position.y, moveToPoints[pathIndex].location.y);
                         transform.position = Vector3.MoveTowards(transform.position, targetPoint, Time.deltaTime * movementSpeed);
@@ -117,8 +149,10 @@ public class Citizen : MonoBehaviour
                         //reached end
                         if (moveToPoints.Length - 1 < pathIndex)
                         {
+                            moveToPoints = null;
                             myState = CitizenStates.Waiting;
                         }
+
                     }
                     break;
                 }
