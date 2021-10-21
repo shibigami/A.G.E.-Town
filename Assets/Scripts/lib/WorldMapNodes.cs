@@ -44,6 +44,7 @@ public class WorldMapNodes
                 {
                     if (existingObjects[z].gameObject.tag == "Player") continue;
                     if (!existingObjects[z].gameObject.GetComponent<Terrain>() &&
+                        existingObjects[z].gameObject.tag != Constants.Tags.Player.ToString() &&
                         existingObjects[z].gameObject.GetComponent<Collider>())
                     {
                         blocked = true;
@@ -63,19 +64,19 @@ public class WorldMapNodes
         return nodes;
     }
 
-    public Node getNodeAt(Vector2 position) 
+    public Node getNodeAt(Vector2 position)
     {
         try
         {
             return nodes[position];
         }
-        catch 
+        catch
         {
             return null;
         }
     }
 
-    public void UpdateNode(Vector2 nodeLocation,Node start,Node end, float moveCost) 
+    public void UpdateNode(Vector2 nodeLocation, Node start, Node end, float moveCost)
     {
         nodes[nodeLocation].SetStartEndNodes(start.location, end.location, WorldMapNodes.DEFAULTMOVECOST);
     }

@@ -19,7 +19,7 @@ public class Sun : MonoBehaviour
         color = new Color(0, 0, 0);
         right = false;
 
-        worldTime = GameObject.FindGameObjectWithTag("GameController").GetComponent<GameManager>().worldTime;
+        worldTime = Constants.gameManager.worldTime;
 
         angle = -180.0f;
     }

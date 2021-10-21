@@ -132,8 +132,9 @@ public class PathFinder
         //reverse the path
         bool complete = false;
         maxIterations = ClosedList.Count;
-        while (!complete || maxIterations > 0)
+        while (!complete)
         {
+            if (maxIterations <= 0) break;
             maxIterations--;
             if (parentNode.parentNode == null) break;
             parentNode = parentNode.parentNode;

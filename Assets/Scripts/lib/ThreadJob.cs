@@ -4,43 +4,50 @@ using UnityEngine;
 
 public class ThreadJob
 {
-    private bool m_IsDone = false;
-    private object m_Handle = new object();
-    private System.Threading.Thread m_Thread = null;
+    private bool isDone = false;
+    private object handle = new object();
+    private System.Threading.Thread thread = null;
     public bool IsDone
     {
         get
         {
+            //create a lock to access isDone
             bool tmp;
-            lock (m_Handle)
+            lock (handle)
             {
-                tmp = m_IsDone;
+                tmp = isDone;
             }
             return tmp;
         }
         set
         {
-            lock (m_Handle)
+            //create lock to set isDone
+            lock (handle)
             {
-                m_IsDone = value;
+                isDone = value;
             }
         }
     }
 
+    //start the thread
     public virtual void Start()
     {
-        m_Thread = new System.Threading.Thread(Run);
-        m_Thread.Start();
+        thread = new System.Threading.Thread(Run);
+        thread.Start();
     }
+    //abort process
     public virtual void Abort()
     {
-        m_Thread.Abort();
+        thread.Abort();
     }
 
+    //virtual method for function to run on thread
     protected virtual void ThreadFunction() { }
 
+    //virtual method for any necessary logic once the job is done
     protected virtual void OnFinished() { }
 
+    //update to be called when necessary and run logic once the job is done, this will also return true if the job is complete
     public virtual bool Update()
     {
         if (IsDone)
@@ -50,6 +57,8 @@ public class ThreadJob
         }
         return false;
     }
+
+    //Method for Unity's coroutine implementation
     public IEnumerator WaitFor()
     {
         while (!Update())
@@ -57,6 +66,8 @@ public class ThreadJob
             yield return null;
         }
     }
+
+    //run the job
     private void Run()
     {
         ThreadFunction();
@@ -64,21 +75,24 @@ public class ThreadJob
     }
 }
 
+//pathfinding thread job
 public class PathFindingJob : ThreadJob
 {
-    public Node startNode;  // arbitary job data
+    //nodes for use in job
+    public Node startNode; 
     public Node endNode;
+    //pathfinder class for path calculations
     private PathFinder pathFinder;
-    public Node[] path; // arbitary job data
+    //result
+    public Node[] path; 
 
     protected override void ThreadFunction()
     {
-        // Do your threaded task. DON'T use the Unity API here
         if (pathFinder == null) pathFinder = new PathFinder();
         path = pathFinder.FindPath(startNode, endNode);
     }
     protected override void OnFinished()
     {
-        // This is executed by the Unity main thread when the job is finished
+        
     }
 }

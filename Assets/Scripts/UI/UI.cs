@@ -15,11 +15,30 @@ public class UI : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        worldTime = GameObject.FindGameObjectWithTag("GameController").GetComponent<GameManager>().worldTime;
+        worldTime = Constants.gameManager.worldTime;
         InvokeRepeating("UpdateTime", 0.0f, 0.5f);
 
         CharacterSheetPanel.SetActive(false);
         InvokeRepeating("UpdateCharacterSheet", 0.01f, 0.5f);
+    }
+
+    private void Update()
+    {
+        if (targetCharacter != null)
+        {
+            var moveToPoints = targetCharacter.GetComponent<Citizen>().moveToPoints;
+
+            if (moveToPoints != null)
+            {
+                //draw path for debugging purposes
+                for (int i = 1; i < moveToPoints.Length; i++)
+                {
+                    var firstpoint = new Vector3(moveToPoints[i - 1].location.x, 1, moveToPoints[i - 1].location.y);
+                    var secondpoint = new Vector3(moveToPoints[i].location.x, 1, moveToPoints[i].location.y);
+                    Debug.DrawLine(firstpoint, secondpoint, Color.white);
+                }
+            }
+        }
     }
 
     private void UpdateTime()
@@ -69,12 +88,12 @@ public class UI : MonoBehaviour
         //}
 
 
-        characterInfo.text = string.Format("Food: {0}   Water: {1}  Fun: {2}    Sleep: {3}\nAllocated actions: {4}\nDay progress: {5}",
-            citizen.needs.food.ToString("00.0"),
-            citizen.needs.hydration.ToString("00.0"),
-            citizen.needs.fun.ToString("00.0"),
-            citizen.needs.sleep.ToString("00.0"),
+        characterInfo.text = string.Format("Food: {0}   Water: {1}  Fun: {2}    Sleep: {3}\nAllocated actions: {4}\nHome: {5}",
+            citizen.needs.food.ToString("."),
+            citizen.needs.hydration.ToString("."),
+            citizen.needs.fun.ToString("."),
+            citizen.needs.sleep.ToString("."),
             schedule,
-            citizen.schedule.dayProgress.ToString());
+            Constants.gameManager.buildings.getHomeForCitizen(citizen.gameObject) != null ? Constants.gameManager.buildings.getHomeForCitizen(citizen.gameObject).name : "None");
     }
 }

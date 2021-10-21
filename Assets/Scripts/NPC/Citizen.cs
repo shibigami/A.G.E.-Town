@@ -20,7 +20,7 @@ public class Citizen : MonoBehaviour
         Play
     }
 
-    private Node[] moveToPoints;
+    public Node[] moveToPoints { get; private set; }
     private Animator animator;
     private CitizenStates myState;
     public float movementSpeed;
@@ -58,7 +58,7 @@ public class Citizen : MonoBehaviour
         //Ai related
         myState = CitizenStates.Waiting;
 
-        worldTime = GameObject.FindGameObjectWithTag("GameController").GetComponent<GameManager>().worldTime;
+        worldTime = Constants.gameManager.worldTime;
 
         needs = new Needs();
         schedule = new Schedule();
@@ -70,9 +70,6 @@ public class Citizen : MonoBehaviour
     private IEnumerator FindPath()
     {
         yield return StartCoroutine(pathFindingJob.WaitFor());
-        moveToPoints = pathFindingJob.path;
-        pathFindingJob = null;
-        isCalculatingPath = false;
     }
 
     private void CalculatePath()
@@ -99,7 +96,7 @@ public class Citizen : MonoBehaviour
         }
         else if (worldTime == null)
         {
-            worldTime = GameObject.FindGameObjectWithTag("GameController").GetComponent<GameManager>().worldTime;
+            worldTime = Constants.gameManager.worldTime;
         }
         else
         {
@@ -111,13 +108,17 @@ public class Citizen : MonoBehaviour
         {
             case CitizenStates.Waiting:
                 {
-                    if (Input.GetButtonDown("Fire1") && !isCalculatingPath)
+                    if (Input.GetButtonDown("Fire1") && !isCalculatingPath && (pathFindingJob == null || !pathFindingJob.IsDone))
                     {
                         CalculatePath();
                     }
 
-                    if (moveToPoints != null && moveToPoints.Length > 0 && !isCalculatingPath)
+                    //if it needs to move somewhere for its action
+                    if (pathFindingJob!=null && pathFindingJob.IsDone)
                     {
+                        moveToPoints = pathFindingJob.path;
+                        //pathFindingJob = null;
+                        isCalculatingPath = false;
                         pathIndex = 0;
                         myState = CitizenStates.Moving;
                     }
@@ -165,7 +166,7 @@ public class Citizen : MonoBehaviour
         //save last world time for calculations
         if (worldTime == null)
         {
-            worldTime = GameObject.FindGameObjectWithTag("GameController").GetComponent<GameManager>().worldTime;
+            worldTime = Constants.gameManager.worldTime;
         }
         else
         {

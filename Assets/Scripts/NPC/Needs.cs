@@ -4,6 +4,14 @@ using UnityEngine;
 
 public class Needs
 {
+    public enum NeedsList
+    {
+        Food,
+        Water,
+        Sleep,
+        Fun
+    }
+
     public float hydration;
     public float food;
     public float sleep;
