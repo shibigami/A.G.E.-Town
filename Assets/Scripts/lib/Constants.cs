@@ -9,7 +9,10 @@ public static class Constants
     public enum Tags 
     {
         Player,
-        Houses
+        Houses,
+        WorkFacilities,
+        EatingFacilities,
+        EntertainmentFacilities
     }
 
     public static GameManager gameManager = GameObject.FindGameObjectWithTag("GameController").GetComponent<GameManager>();

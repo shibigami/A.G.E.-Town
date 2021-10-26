@@ -28,22 +28,13 @@ public class GameManager : MonoBehaviour
             citizens.Add(cit);
         }
 
-        var citizenCount = citizenstemp.Length-1;
-        //distribute houses
-        foreach (GameObject building in buildings.houses.Keys)
+        //distribute houmes and facilities
+        foreach (GameObject citizen in citizens)
         {
-            if (citizenCount < 0) break;
-            for (int i = 0; i < buildings.houses[building].Length; i++)
-            {
-                if (citizenCount < 0) break;
-                //gameobject list associated with each house is null for that index?
-                //then no citizen gameobject is assigned to it
-                if (buildings.houses[building][i]==null) 
-                {
-                    buildings.houses[building][i] = citizenstemp[citizenCount];
-                    citizenCount--;
-                }
-            }
+            buildings.AssignFacility(citizen, Buildings.FacilityTypes.Home);
+            buildings.AssignFacility(citizen, Buildings.FacilityTypes.Work);
+            buildings.AssignFacility(citizen, Buildings.FacilityTypes.Eat);
+            buildings.AssignFacility(citizen, Buildings.FacilityTypes.Entertainment);
         }
     }
 

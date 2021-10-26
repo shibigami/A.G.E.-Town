@@ -5,6 +5,7 @@ using UnityEngine.UI;
 
 public class UI : MonoBehaviour
 {
+    public float uiRefreshRate;
     public Text time;
     private WorldTime worldTime;
 
@@ -12,14 +13,27 @@ public class UI : MonoBehaviour
     public Text characterInfo;
     private GameObject targetCharacter;
 
+    public GameObject CharacterSchedulePanel;
+
+    //editor on change
+    public void OnGUI()
+    {
+        //check later how to set editor variables on change properly
+        //OnGui is not the correct method
+        uiRefreshRate = Mathf.Clamp(uiRefreshRate, 0.05f, 1f);
+    }
+
     // Start is called before the first frame update
     void Start()
     {
         worldTime = Constants.gameManager.worldTime;
-        InvokeRepeating("UpdateTime", 0.0f, 0.5f);
+        InvokeRepeating("UpdateWorldTime", 0.0f, uiRefreshRate);
 
         CharacterSheetPanel.SetActive(false);
-        InvokeRepeating("UpdateCharacterSheet", 0.01f, 0.5f);
+        InvokeRepeating("UpdateCharacterSheet", 0.01f, uiRefreshRate);
+
+        CharacterSchedulePanel.SetActive(false);
+        InvokeRepeating("UpdateCharacterSchedule", 0.02f, uiRefreshRate);
     }
 
     private void Update()
@@ -41,7 +55,7 @@ public class UI : MonoBehaviour
         }
     }
 
-    private void UpdateTime()
+    private void UpdateWorldTime()
     {
         time.text = ConvertTime();
     }
@@ -81,19 +95,12 @@ public class UI : MonoBehaviour
 
         var citizen = targetCharacter.GetComponent<Citizen>();
 
-        string schedule = "";
-        //for (int i = 0; i < citizen.schedule.allocatedAction.Length; i++)
-        //{
-        //    schedule += (0.25f * i).ToString() + ":" + citizen.schedule.allocatedAction[i].ToString() + " ";
-        //}
-
-
-        characterInfo.text = string.Format("Food: {0}   Water: {1}  Fun: {2}    Sleep: {3}\nAllocated actions: {4}\nHome: {5}",
-            citizen.needs.food.ToString("."),
-            citizen.needs.hydration.ToString("."),
-            citizen.needs.fun.ToString("."),
-            citizen.needs.sleep.ToString("."),
-            schedule,
-            Constants.gameManager.buildings.getHomeForCitizen(citizen.gameObject) != null ? Constants.gameManager.buildings.getHomeForCitizen(citizen.gameObject).name : "None");
+        characterInfo.text = string.Format("Food: {0}   Water: {1}  Entertainment: {2}    Sleep: {3}\nHome: {4}",
+            citizen.needs.food.ToString(".00"),
+            citizen.needs.hydration.ToString(".00"),
+            citizen.needs.entertainment.ToString(".00"),
+            citizen.needs.sleep.ToString(".00"),
+            Constants.gameManager.buildings.getFacilityForCitizen(citizen.gameObject, Buildings.FacilityTypes.Home) != null ?
+            Constants.gameManager.buildings.getFacilityForCitizen(citizen.gameObject, Buildings.FacilityTypes.Home).name : "None");
     }
 }
