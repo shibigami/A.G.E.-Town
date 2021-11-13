@@ -38,4 +38,9 @@ public class Schedule
             allocatedAction[i] = action;
         }
     }
+
+    public Citizen.CitizenAction getActionForTime(float timeInHours)
+    {
+        return allocatedAction[Mathf.FloorToInt(timeInHours / Constants.TIMELSLICEUNIT)];
+    }
 }

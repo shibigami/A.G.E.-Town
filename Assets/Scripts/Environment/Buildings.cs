@@ -27,29 +27,29 @@ public class Buildings
         housesParent = GameObject.FindGameObjectWithTag(Constants.Tags.Houses.ToString());
         if (housesParent != null)
         {
-            houses = GetFacilityDictionary(housesParent, 2);
+            houses = GetFacilityDictionary(housesParent, 3);
         }
 
         workParent = GameObject.FindGameObjectWithTag(Constants.Tags.WorkFacilities.ToString());
         if (workParent != null)
         {
-            workFacilities = GetFacilityDictionary(workParent, 5);
+            workFacilities = GetFacilityDictionary(workParent, 15);
         }
 
         eatingParent = GameObject.FindGameObjectWithTag(Constants.Tags.EatingFacilities.ToString());
         if (eatingParent != null)
         {
-            eatingFacilities = GetFacilityDictionary(eatingParent, 20);
+            eatingFacilities = GetFacilityDictionary(eatingParent, 25);
         }
 
         entertainmentParent = GameObject.FindGameObjectWithTag(Constants.Tags.EntertainmentFacilities.ToString());
         if (entertainmentParent != null)
         {
-            eatingFacilities = GetFacilityDictionary(entertainmentParent, 25);
+            entertainmentFacilities = GetFacilityDictionary(entertainmentParent, 8);
         }
     }
 
-    public GameObject getFacilityForCitizen(GameObject citizen, FacilityTypes facilityType)
+    public Transform getFacilityForCitizen(GameObject citizen, FacilityTypes facilityType)
     {
         var facilityList = GetFacilities(facilityType);
         if (facilityList == null || facilityList.Keys.Count <= 0)
@@ -63,7 +63,14 @@ public class Buildings
             {
                 if (facilityList[facility][i] == citizen)
                 {
-                    return facility;
+                    //return facilities door
+                    for (int c = 0; c < facility.transform.childCount; c++)
+                    {
+                        if (facility.transform.GetChild(c).tag == "Door")
+                        {
+                            return facility.transform.GetChild(c);
+                        }
+                    }
                 }
             }
         }
@@ -109,7 +116,7 @@ public class Buildings
     private Dictionary<GameObject, GameObject[]> GetFacilityDictionary(GameObject facilitiesParent, int facilityCapacity)
     {
         Dictionary<GameObject, GameObject[]> temp = new Dictionary<GameObject, GameObject[]>();
-        for (int i = 0; i < housesParent.transform.childCount; i++)
+        for (int i = 0; i < facilitiesParent.transform.childCount; i++)
         {
             temp.Add(facilitiesParent.transform.GetChild(i).gameObject, new GameObject[facilityCapacity]);
         }
@@ -121,6 +128,10 @@ public class Buildings
     {
         switch (facilityType)
         {
+            case FacilityTypes.Home:
+                {
+                    return houses;
+                }
             case FacilityTypes.Work:
                 {
                     return workFacilities;

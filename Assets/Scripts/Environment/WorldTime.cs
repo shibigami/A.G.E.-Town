@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class WorldTime
 {
-    public float currentTime;
+    public float currentTime { get; private set; }
 
     public WorldTime()
     {
@@ -15,9 +15,14 @@ public class WorldTime
     public void UpdateTime(float dt)
     {
         currentTime += dt;
-        if (currentTime >= 1440) 
+        if (currentTime >= 1440)
         {
             currentTime = 0;
         }
+    }
+
+    public float GetCurrentWorldTimeInHours()
+    {
+        return currentTime / 60;
     }
 }

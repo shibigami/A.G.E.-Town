@@ -88,7 +88,7 @@ public class CameraController : MonoBehaviour
             (transform.right.normalized * Input.GetAxis("Horizontal") * horizontalSpeed) +
             (transform.forward.normalized * Input.GetAxis("Vertical") * verticalSpeed);
         directionVector.y = 0;
-        transform.position += directionVector * Time.deltaTime;
+        transform.position += directionVector * Time.deltaTime / Time.timeScale;
     }
 
     private void CameraRotation()

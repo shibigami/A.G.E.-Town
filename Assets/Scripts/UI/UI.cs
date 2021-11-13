@@ -14,14 +14,11 @@ public class UI : MonoBehaviour
     private GameObject targetCharacter;
 
     public GameObject CharacterSchedulePanel;
+    public Text ageLabel;
+    public GameObject CharacterSchedule;
+    public GameObject FreeTime, WorkTime, SleepTime;
 
-    //editor on change
-    public void OnGUI()
-    {
-        //check later how to set editor variables on change properly
-        //OnGui is not the correct method
-        uiRefreshRate = Mathf.Clamp(uiRefreshRate, 0.05f, 1f);
-    }
+    public Text frameCountLabel;
 
     // Start is called before the first frame update
     void Start()
@@ -34,6 +31,8 @@ public class UI : MonoBehaviour
 
         CharacterSchedulePanel.SetActive(false);
         InvokeRepeating("UpdateCharacterSchedule", 0.02f, uiRefreshRate);
+
+        InvokeRepeating("UpdateFrameCount", 0.03f, uiRefreshRate * 5);
     }
 
     private void Update()
@@ -70,6 +69,8 @@ public class UI : MonoBehaviour
     public void SelectCharacter(GameObject target)
     {
         targetCharacter = target;
+
+        PopulateCharacterSchedule(targetCharacter.GetComponent<Citizen>());
     }
 
     public void ClearSelectedCharacter()
@@ -77,6 +78,8 @@ public class UI : MonoBehaviour
         if (targetCharacter != null)
         {
             targetCharacter = null;
+
+            ClearCharacterSchedule();
         }
     }
 
@@ -84,7 +87,7 @@ public class UI : MonoBehaviour
     {
         if (targetCharacter == null || !targetCharacter.GetComponent<Citizen>())
         {
-            if (CharacterSheetPanel.activeInHierarchy)
+            if (CharacterSheetPanel.activeSelf)
             {
                 CharacterSheetPanel.SetActive(false);
             }
@@ -95,12 +98,84 @@ public class UI : MonoBehaviour
 
         var citizen = targetCharacter.GetComponent<Citizen>();
 
-        characterInfo.text = string.Format("Food: {0}   Water: {1}  Entertainment: {2}    Sleep: {3}\nHome: {4}",
+        characterInfo.text = string.Format("Food: {0}   Water: {1}   Entertainment: {2}   Sleep: {3}\nHome: {4}   Action: {5}   Queued action: {6}",
             citizen.needs.food.ToString(".00"),
             citizen.needs.hydration.ToString(".00"),
             citizen.needs.entertainment.ToString(".00"),
             citizen.needs.sleep.ToString(".00"),
             Constants.gameManager.buildings.getFacilityForCitizen(citizen.gameObject, Buildings.FacilityTypes.Home) != null ?
-            Constants.gameManager.buildings.getFacilityForCitizen(citizen.gameObject, Buildings.FacilityTypes.Home).name : "None");
+            Constants.gameManager.buildings.getFacilityForCitizen(citizen.gameObject, Buildings.FacilityTypes.Home).parent.name : "None",
+            citizen.GetCurrentAction().ToString(),
+            citizen.GetQueuedAction().ToString());
     }
+
+    private void UpdateFrameCount()
+    {
+        frameCountLabel.text = ((int)(1f / Time.unscaledDeltaTime)).ToString() + " Fps";
+    }
+
+    public void ShowCharacterSchedule()
+    {
+        if (targetCharacter != null)
+        {
+            CharacterSchedulePanel.SetActive(true);
+        }
+    }
+    public void SpeedUp(float time)
+    {
+        Time.timeScale = time;
+    }
+
+    private void ClearCharacterSchedule()
+    {
+        foreach (Transform child in CharacterSchedule.transform)
+        {
+            Destroy(child.gameObject);
+        }
+    }
+
+    private void PopulateCharacterSchedule(Citizen citizen)
+    {
+        foreach (var timeSlot in citizen.schedule.allocatedAction)
+        {
+            switch (timeSlot)
+            {
+                case (Citizen.CitizenAction.Sleep):
+                    {
+                        GameObject.Instantiate(SleepTime, CharacterSchedule.transform);
+                        break;
+                    }
+                case (Citizen.CitizenAction.Work):
+                    {
+                        GameObject.Instantiate(WorkTime, CharacterSchedule.transform);
+                        break;
+                    }
+                case (Citizen.CitizenAction.Play):
+                    {
+                        GameObject.Instantiate(FreeTime, CharacterSchedule.transform);
+                        break;
+                    }
+            }
+        }
+    }
+
+    private void UpdateCharacterSchedule()
+    {
+        if (targetCharacter == null || !targetCharacter.GetComponent<Citizen>())
+        {
+            if (CharacterSchedulePanel.activeSelf)
+            {
+                CharacterSchedulePanel.SetActive(false);
+            }
+
+            return;
+        }
+        ageLabel.text = string.Format("{0} Days", targetCharacter.GetComponent<Citizen>().age);
+    }
+
+    void OnValidate()
+    {
+        uiRefreshRate = Mathf.Clamp(uiRefreshRate, 0.05f, 1f);
+    }
+
 }

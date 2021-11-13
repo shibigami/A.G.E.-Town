@@ -34,7 +34,7 @@ public class Sun : MonoBehaviour
     {
         if (worldTime == null) return;
 
-        right = worldTime.currentTime >= 5 * 60 && worldTime.currentTime <= 17 * 60;
+        right = worldTime.currentTime >= 5 * 60 && worldTime.currentTime <= 22 * 60;
         float worldTimeDiff = worldTime.currentTime - previousWorldTime;
 
         float direction = right ? 1.5f : -1.5f;

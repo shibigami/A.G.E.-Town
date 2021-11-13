@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class PathFinder
@@ -16,9 +15,13 @@ public class PathFinder
         if (worldMapNodes.getNodes().Count <= 0) return null;
 
         var start = startNode;
-        start.SetLocation(new Vector2(Mathf.FloorToInt(start.location.x), Mathf.FloorToInt(start.location.y)));
+        //set the start to the closest node of the start node
+        start.SetLocation(new Vector2(Mathf.FloorToInt(startNode.location.x / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE,
+            Mathf.FloorToInt(startNode.location.y / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE));
         var end = endNode;
-        end.SetLocation(new Vector2(Mathf.FloorToInt(end.location.x), Mathf.FloorToInt(end.location.y)));
+        //same thing for the end node
+        end.SetLocation(new Vector2(Mathf.FloorToInt(endNode.location.x / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE,
+            Mathf.FloorToInt(endNode.location.y / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE));
         start.SetStartEndNodes(start.location, end.location, WorldMapNodes.DEFAULTMOVECOST);
         end.SetStartEndNodes(start.location, end.location, WorldMapNodes.DEFAULTMOVECOST);
 
@@ -53,9 +56,10 @@ public class PathFinder
             OpenList.RemoveAt(index);
 
             //reached end node
-            if (currentNode.location == end.location)
+            if ((end.location - currentNode.location).magnitude <= WorldMapNodes.NODEDISTANCE || currentNode.location == end.location)
             {
                 pathFound = true;
+                break;
             }
 
             //check neighbours
@@ -124,7 +128,7 @@ public class PathFinder
         }
 
         //did not reach the end node
-        if (end.location != ClosedList[ClosedList.Count - 1].location) return null;
+        //if (end.location != ClosedList[ClosedList.Count - 1].location) return null;
 
         List<Node> solutionPath = new List<Node>();
         var parentNode = ClosedList[ClosedList.Count - 1];
@@ -146,6 +150,12 @@ public class PathFinder
         }
 
         solutionPath.Reverse();
+
+        //reiterate to resolve the issue with data loss -path starting at the wrong location
+        //if (solutionPath.Count <= 0 || start.location != solutionPath[0].location)
+        //{
+        //    return FindPath(startNode, endNode);
+        //}
 
         return solutionPath.ToArray();
     }

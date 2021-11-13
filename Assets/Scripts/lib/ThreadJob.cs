@@ -79,20 +79,41 @@ public class ThreadJob
 public class PathFindingJob : ThreadJob
 {
     //nodes for use in job
-    public Node startNode; 
+    public Node startNode;
     public Node endNode;
     //pathfinder class for path calculations
     private PathFinder pathFinder;
     //result
-    public Node[] path; 
+    private Node[] path;
+    public bool pathObtained;
 
     protected override void ThreadFunction()
     {
         if (pathFinder == null) pathFinder = new PathFinder();
         path = pathFinder.FindPath(startNode, endNode);
+        pathObtained = false;
     }
     protected override void OnFinished()
     {
-        
+
+    }
+
+    public Node[] getPath()
+    {
+        if (path == null)
+        {
+            return null;
+        }
+
+        //ensure there is a correct path
+        var endNodeSuccessfulluCalculated = (path[path.Length - 1].location - endNode.location).magnitude <= WorldMapNodes.NODEDISTANCE;
+
+        if (path[0].location == startNode.location && endNodeSuccessfulluCalculated)
+        {
+            pathObtained = true;
+            return path;
+        }
+
+        return null;
     }
 }
