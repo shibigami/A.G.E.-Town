@@ -3,11 +3,12 @@ using UnityEngine;
 
 public class WorldMapNodes
 {
-    public const float NODEDISTANCE = 0.5f;
+    public const float NODEDISTANCE = 1.0f;
     public const float MAXDISTANCEFORSEARCH = 100f;
-    public const float DEFAULTMOVECOST = 1f;
+    public const float DEFAULTMOVECOST = 1.0f;
 
     private static Dictionary<Vector2, Node> nodes;
+    private static bool mapComplete;
 
     private static WorldMapNodes _instance;
 
@@ -23,6 +24,7 @@ public class WorldMapNodes
     private WorldMapNodes()
     {
         nodes = new Dictionary<Vector2, Node>();
+        mapComplete = false;
     }
 
     public void CreateNodes()
@@ -60,6 +62,7 @@ public class WorldMapNodes
                 nodes.Add(nodePosition, new Node(x, y));
             }
         }
+        mapComplete = true;
     }
 
     public Dictionary<Vector2, Node> getNodes()
@@ -82,5 +85,10 @@ public class WorldMapNodes
     public void UpdateNode(Vector2 nodeLocation, Node start, Node end, float moveCost)
     {
         nodes[nodeLocation].SetStartEndNodes(start.location, end.location, WorldMapNodes.DEFAULTMOVECOST);
+    }
+
+    public bool isMapComplete() 
+    {
+        return mapComplete;
     }
 }

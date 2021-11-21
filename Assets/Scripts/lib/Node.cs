@@ -28,8 +28,9 @@ public class Node
 
     public void SetStartEndNodes(Vector2 start, Vector2 end, float costToMove)
     {
-        g = Mathf.Sqrt(Mathf.Pow((start.x - location.x), 2)) + Mathf.Sqrt(Mathf.Pow((start.y - location.y), 2)) + costToMove;
-        h = Mathf.Sqrt(Mathf.Pow((end.x - location.x), 2)) + Mathf.Sqrt(Mathf.Pow((end.y - location.y), 2));
+        g = Mathf.Sqrt(Mathf.Pow((location.x - start.x), 2)) + Mathf.Sqrt(Mathf.Pow((location.y - start.y), 2)) + costToMove;
+        h = Mathf.Sqrt(Mathf.Pow((location.x - end.x), 2)) + Mathf.Sqrt(Mathf.Pow((location.y - end.y), 2));
+
         f = g + h;
     }
 

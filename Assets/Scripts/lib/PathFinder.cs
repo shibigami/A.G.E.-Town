@@ -3,31 +3,50 @@ using UnityEngine;
 
 public class PathFinder
 {
-    private WorldMapNodes worldMapNodes;
+    private Dictionary<Vector2, Node> worldMapNodesCopy;
 
     public PathFinder()
     {
-        worldMapNodes = WorldMapNodes.Instance;
+        worldMapNodesCopy = WorldMapNodes.Instance.getNodes();
     }
 
     public Node[] FindPath(Node startNode, Node endNode)
     {
-        if (worldMapNodes.getNodes().Count <= 0) return null;
+        worldMapNodesCopy = WorldMapNodes.Instance.getNodes();
+        if (worldMapNodesCopy.Count <= 0) return null;
 
         var start = startNode;
-        //set the start to the closest node of the start node
-        start.SetLocation(new Vector2(Mathf.FloorToInt(startNode.location.x / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE,
-            Mathf.FloorToInt(startNode.location.y / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE));
+        ////set the start to the closest node of the start node
+        //start.SetLocation(new Vector2(Mathf.FloorToInt(startNode.location.x / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE,
+        //    Mathf.FloorToInt(startNode.location.y / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE));
         var end = endNode;
-        //same thing for the end node
-        end.SetLocation(new Vector2(Mathf.FloorToInt(endNode.location.x / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE,
-            Mathf.FloorToInt(endNode.location.y / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE));
+        ////same thing for the end node
+        //end.SetLocation(new Vector2(Mathf.FloorToInt(endNode.location.x / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE,
+        //    Mathf.FloorToInt(endNode.location.y / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE));
+
+        bool startDone = false;
+        bool endDone = false;
+        foreach (var location in worldMapNodesCopy.Keys)
+        {
+            if (!startDone && (location - startNode.location).magnitude <= WorldMapNodes.NODEDISTANCE)
+            {
+                start = worldMapNodesCopy[location];
+                startDone = true;
+            }
+            if (!endDone && (location - endNode.location).magnitude <= WorldMapNodes.NODEDISTANCE)
+            {
+                end = worldMapNodesCopy[location];
+                endDone = true;
+            }
+            if (startDone && endDone) break;
+        }
+
         start.SetStartEndNodes(start.location, end.location, WorldMapNodes.DEFAULTMOVECOST);
         end.SetStartEndNodes(start.location, end.location, WorldMapNodes.DEFAULTMOVECOST);
 
         var OpenList = new List<Node>();
         var ClosedList = new List<Node>();
-        var maxIterations = worldMapNodes.getNodes().Count - 1;
+        var maxIterations = worldMapNodesCopy.Count - 1;
         OpenList.Add(start);
         OpenList[0].SetStartEndNodes(start.location, end.location, WorldMapNodes.DEFAULTMOVECOST);
         bool pathFound = false;
@@ -37,26 +56,26 @@ public class PathFinder
             if (maxIterations <= 0 || OpenList.Count <= 0) break;
             maxIterations--;
 
-            //get lowest cost node
+            //get lowest h cost node
             var currentNode = new Node(0, 0);
-            var lowestfCost = float.MaxValue;
+            var lowesthCost = float.MaxValue;
             var index = -1;
             for (int i = 0; i < OpenList.Count; i++)
             {
-                if (OpenList[i].f < lowestfCost)
+                if (OpenList[i].h < lowesthCost)
                 {
                     currentNode = OpenList[i];
-                    lowestfCost = OpenList[i].f;
+                    lowesthCost = OpenList[i].h;
                     index = i;
                 }
             }
 
-            //checking, add it to closed list
+            //checking, move it to closed list
             ClosedList.Add(currentNode);
             OpenList.RemoveAt(index);
 
             //reached end node
-            if ((end.location - currentNode.location).magnitude <= WorldMapNodes.NODEDISTANCE || currentNode.location == end.location)
+            if ((end.location - currentNode.location).magnitude < WorldMapNodes.NODEDISTANCE || currentNode.location == end.location)
             {
                 pathFound = true;
                 break;
@@ -77,12 +96,10 @@ public class PathFinder
                     currentNode.location.x + directions[i].x,
                     currentNode.location.y + directions[i].y);
 
-                if (worldMapNodes.getNodeAt(neighborLocation) == null) continue;
-
                 //update node costs
                 try
                 {
-                    worldMapNodes.UpdateNode(neighborLocation, start, end, WorldMapNodes.DEFAULTMOVECOST);
+                    worldMapNodesCopy[neighborLocation].SetStartEndNodes(start.location, end.location, WorldMapNodes.DEFAULTMOVECOST);
                 }
                 catch
                 {
@@ -108,9 +125,10 @@ public class PathFinder
                     if (OpenList[z].location == neighborLocation)
                     {
                         //check g cost to see which one is closer
-                        if (worldMapNodes.getNodes()[neighborLocation].g < OpenList[z].g)
+                        if (worldMapNodesCopy[neighborLocation].g < OpenList[z].g)
                         {
-                            OpenList[z].SetParent(worldMapNodes.getNodes()[neighborLocation]);
+                            //updae parent
+                            OpenList[z].SetParent(worldMapNodesCopy[neighborLocation]);
                         }
                         inOpenList = true;
                         break;
@@ -121,14 +139,14 @@ public class PathFinder
                 if (inOpenList) continue;
 
                 //got here, add it to the open list, nodes to be checked
-                OpenList.Add(worldMapNodes.getNodes()[neighborLocation]);
+                OpenList.Add(worldMapNodesCopy[neighborLocation]);
                 OpenList[OpenList.Count - 1].SetStartEndNodes(start.location, end.location, WorldMapNodes.DEFAULTMOVECOST);
                 OpenList[OpenList.Count - 1].SetParent(currentNode);
             }
         }
 
         //did not reach the end node
-        //if (end.location != ClosedList[ClosedList.Count - 1].location) return null;
+        //if (!pathFound) return null;
 
         List<Node> solutionPath = new List<Node>();
         var parentNode = ClosedList[ClosedList.Count - 1];
@@ -150,12 +168,6 @@ public class PathFinder
         }
 
         solutionPath.Reverse();
-
-        //reiterate to resolve the issue with data loss -path starting at the wrong location
-        //if (solutionPath.Count <= 0 || start.location != solutionPath[0].location)
-        //{
-        //    return FindPath(startNode, endNode);
-        //}
 
         return solutionPath.ToArray();
     }

@@ -6,6 +6,7 @@ public class Citizen : MonoBehaviour
 {
     public enum CitizenStates
     {
+        Loading,
         Waiting,
         Moving,
         Action
@@ -43,20 +44,28 @@ public class Citizen : MonoBehaviour
 
     private UI ui;
 
-    //currently 2 threads are used per path finding calculations
-    //this should avoid citizens awaiting for a long time
     private PathFindingJob[] pathFindingJob;
     private int pathIndex;
     private bool[] isCalculatingPath;
-    private Node[] pathResult;
+    //private bool pathProcessingCoroutineRunning;
+    public float pathProcessingRecallTime;
+    private float LoadingFinishedTime;
 
     // Start is called before the first frame update
     void Start()
     {
         //pathfinder
-        isCalculatingPath = new bool[2] { false, false };
+        isCalculatingPath = new bool[Constants.THREADSPERCITIZEN];
+        for (int i = 0; i < isCalculatingPath.Length; i++)
+        {
+            isCalculatingPath[i] = false;
+        }
         lineRenderer = GetComponent<LineRenderer>();
-        pathFindingJob = new PathFindingJob[2];
+        pathFindingJob = new PathFindingJob[Constants.THREADSPERCITIZEN];
+       // pathProcessingCoroutineRunning = false;
+
+        StartCoroutine("MovePointsHandling");
+        LoadingFinishedTime = Time.time + Constants.CITIZENLOADTIME;
 
         //animator allocation
         try
@@ -69,7 +78,7 @@ public class Citizen : MonoBehaviour
         }
 
         //Ai related
-        myState = CitizenStates.Waiting;
+        myState = CitizenStates.Loading;
         currentAction = CitizenAction.None;
         previousBuildingAction = CitizenAction.None;
 
@@ -88,6 +97,85 @@ public class Citizen : MonoBehaviour
         yield return StartCoroutine(pathFindingJob[index].WaitFor());
     }
 
+    private IEnumerator MovePointsHandling()
+    {
+        //pathProcessingCoroutineRunning = true;
+
+        if (!WorldMapNodes.Instance.isMapComplete())
+        {
+            yield return new WaitUntil(WorldMapNodes.Instance.isMapComplete);
+        }
+
+        for (int i = 0; i < isCalculatingPath.Length; i++)
+        {
+            if (!isCalculatingPath[i])
+            {
+                StartCoroutine("CalculatePath", i);
+                //yield return new WaitForEndOfFrame();
+                continue;
+            }
+
+            ////if there is a path already calculated
+            if (pathFindingJob[i].IsDone)
+            {
+                moveToPoints = pathFindingJob[i].getPath();
+
+                if (moveToPoints != null)
+                {
+                    //reset calculating flags
+                    //isCalculatingPath = new bool[Constants.THREADSPERCITIZEN];
+
+                    //set end flag for remaining threads
+                    for (int c = 0; c < pathFindingJob.Length; c++)
+                    {
+                        if (pathFindingJob[c] != null)
+                        {
+                            pathFindingJob[c].SetEndFlag();
+                        }
+                        isCalculatingPath[c] = false;
+                    }
+                    break;
+                }
+                else
+                {
+                    isCalculatingPath[i] = false;
+                }
+            }
+        }
+
+        yield return new WaitForSecondsRealtime(pathProcessingRecallTime);
+
+        //pathProcessingCoroutineRunning = false;
+    }
+
+    //call coroutine and await for each unsuccessful path finding operation needed
+    private IEnumerator CalculatePath(int index)
+    {
+        if (!isCalculatingPath[index])
+        {
+            if (pathFindingJob[index] == null)
+            {
+                pathFindingJob[index] = Constants.gameManager.PathFindingJobsPool;
+            }
+
+            if (pathFindingJob[index].isPathNull() || pathFindingJob[index].isPathZeroLength() || pathFindingJob[index].pathObtained)
+            {
+                //decide on end node based on current need or schedule
+                pathFindingJob[index].endNode = GetNodeBasedOnAction();
+
+                if (pathFindingJob[index].endNode != null)
+                {
+                    pathFindingJob[index].startNode = new Node(new Vector2(transform.position.x, transform.position.z));
+                    //run thread
+                    pathFindingJob[index].Start();
+                    isCalculatingPath[index] = true;
+                }
+            }
+        }
+
+        yield return new WaitForEndOfFrame();
+    }
+
     private IEnumerator BuildLineRendererPath()
     {
         yield return new WaitForEndOfFrame();
@@ -99,39 +187,6 @@ public class Citizen : MonoBehaviour
             lineRenderer.SetPosition(i, lineCorners);
         }
 
-    }
-
-    //call coroutine and await for each unsuccessful path finding operation needed
-    private IEnumerator CalculatePath(int index)
-    {
-        if (!isCalculatingPath[index])
-        {
-            pathFindingJob[index] = Constants.gameManager.GetNextAvailablePathfindingJob();
-
-            bool callback = false;
-
-            if (pathFindingJob[index] == null)
-            {
-                callback = true;
-                yield return new WaitForSecondsRealtime(0.1f);
-            }
-
-            if (!callback)
-            {
-                //decide on end node based on current need or schedule
-                pathFindingJob[index].endNode = GetNodeBasedOnAction();
-
-                if (pathFindingJob[index].endNode != null)
-                {
-                    pathFindingJob[index].startNode = new Node(new Vector2(transform.position.x, transform.position.z));
-                    //run thread
-                    pathFindingJob[index].Start();
-                    //listen for finished
-                    StartCoroutine("FindPath", index);
-                    isCalculatingPath[index] = true;
-                }
-            }
-        }
     }
 
     private Node GetNodeBasedOnAction()
@@ -202,14 +257,23 @@ public class Citizen : MonoBehaviour
         //state machine
         switch (myState)
         {
+            case CitizenStates.Loading:
+                {
+                    if (LoadingFinishedTime < Time.time)
+                    {
+                        myState = CitizenStates.Waiting;
+                    }
+                    break;
+                }
             case CitizenStates.Waiting:
                 {
+                    StartCoroutine("MovePointsHandling");
+
                     Walk(false);
                     lineRenderer.positionCount = 0;
 
                     //assign action according to schedule
                     queuedAction = schedule.getActionForTime(Constants.gameManager.worldTime.GetCurrentWorldTimeInHours());
-
 
                     //reassign action in case of need priority
                     needs.CheckNeeds(queuedAction);
@@ -229,37 +293,61 @@ public class Citizen : MonoBehaviour
                             break;
                         }
 
-                        for (int i = 0; i < isCalculatingPath.Length; i++)
-                        {
-                            if (!isCalculatingPath[i])
-                            {
-                                StartCoroutine("CalculatePath", i);
-                                break;
-                            }
+                        //for (int i = 0; i < isCalculatingPath.Length; i++)
+                        //{
+                        //    //if there is a path already calculated
+                        //    if (pathFindingJob[i].IsDone)
+                        //    {
+                        //        moveToPoints = pathFindingJob[i].getPath();
 
-                            //if there is a path already calculated
-                            pathResult = pathFindingJob[i].getPath();
+                        //        if (moveToPoints != null)
+                        //        {
+                        //            //reset calculating flags
+                        //            //isCalculatingPath = new bool[Constants.THREADSPERCITIZEN];
 
-                            if (pathResult != null)
-                            {
-                                isCalculatingPath[i] = false;
-                            }
-                        }
+                        //            //set end flag for remaining threads
+                        //            for (int c = 0; c < pathFindingJob.Length; c++)
+                        //            {
+                        //                if (pathFindingJob[c] != null)
+                        //                {
+                        //                    pathFindingJob[c].SetEndFlag();
+                        //                }
+                        //                isCalculatingPath[c] = false;
+                        //            }
+                        //            break;
+                        //        }
+                        //        else
+                        //        {
+                        //            isCalculatingPath[i] = false;
+                        //        }
+                        //    }
+                        //}
 
                         //check if there is a correct path, otherwise re-calculate on the next frame
-                        if (pathResult != null && pathResult.Length > 0)
+                        if (moveToPoints != null && moveToPoints.Length > 0)
                         {
                             var startNode = new Vector2(Mathf.FloorToInt(transform.position.x / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE,
                                 Mathf.FloorToInt(transform.position.z / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE);
 
-                            if (pathResult[0].location == startNode)
+                            if (moveToPoints[0].location == startNode)
                             {
-                                moveToPoints = pathResult;
                                 pathIndex = 0;
                                 myState = CitizenStates.Moving;
+
+                                //foreach (var pfj in pathFindingJob)
+                                //{
+                                //    pfj.Abort();
+                                //}
                                 StartCoroutine("BuildLineRendererPath");
+                                break;
                             }
                         }
+
+                        //coroutine for thread pulling and path calculation
+                        //if (!pathProcessingCoroutineRunning)
+                        //{
+                            //StartCoroutine("MovePointsHandling");
+                        //}
                     }
                     //if no path to assign then increase need according to current action and delta world time
                     else
@@ -292,7 +380,7 @@ public class Citizen : MonoBehaviour
                         if (moveToPoints.Length - 1 < pathIndex)
                         {
                             moveToPoints = null;
-                            pathFindingJob = null;
+                            pathFindingJob = new PathFindingJob[Constants.THREADSPERCITIZEN];
                             currentAction = CitizenAction.GoInside;
                             myState = CitizenStates.Action;
                         }
@@ -385,5 +473,10 @@ public class Citizen : MonoBehaviour
     public CitizenAction GetQueuedAction()
     {
         return queuedAction;
+    }
+
+    private void OnValidate()
+    {
+        pathProcessingRecallTime = Mathf.Clamp(pathProcessingRecallTime, 0.05f, 1.0f);
     }
 }

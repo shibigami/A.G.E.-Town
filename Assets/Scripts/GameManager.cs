@@ -42,10 +42,10 @@ public class GameManager : MonoBehaviour
             buildings.AssignFacility(citizen, Buildings.FacilityTypes.Entertainment);
         }
 
-        //initialize threadpool according amount of citizens
+        //initialize threadpool according to amount of citizens
         //this is initialized with a higher value in order to recalculate paths that return as invalid
         //this should fix "waiting" citizens behavior
-        pathFindingJobsPool = new PathFindingJob[citizens.Count * 2];
+        pathFindingJobsPool = new PathFindingJob[citizens.Count * Constants.THREADSPERCITIZEN];
         currentPathfindingIndex = -1; //start at -1 due to initial increment
     }
 
@@ -67,21 +67,19 @@ public class GameManager : MonoBehaviour
         Time.timeScale = speedup ? 15 : 1;
     }
 
-    public PathFindingJob GetNextAvailablePathfindingJob()
+    public PathFindingJob PathFindingJobsPool
     {
-        int nextIndex = currentPathfindingIndex + 1 < pathFindingJobsPool.Length ? currentPathfindingIndex + 1 : 0;
-
-        if (pathFindingJobsPool[nextIndex] == null)
+        get
         {
+            int nextIndex = currentPathfindingIndex + 1 < pathFindingJobsPool.Length ? currentPathfindingIndex + 1 : 0;
+
             pathFindingJobsPool[nextIndex] = new PathFindingJob();
-        }
-
-        if ((!pathFindingJobsPool[nextIndex].IsDone && !pathFindingJobsPool[nextIndex].pathObtained))
-        {
             currentPathfindingIndex = nextIndex;
             return pathFindingJobsPool[currentPathfindingIndex];
         }
-
-        return null;
+        set 
+        {
+            PathFindingJobsPool = value;
+        }
     }
 }

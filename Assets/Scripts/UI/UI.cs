@@ -32,7 +32,7 @@ public class UI : MonoBehaviour
         CharacterSchedulePanel.SetActive(false);
         InvokeRepeating("UpdateCharacterSchedule", 0.02f, uiRefreshRate);
 
-        InvokeRepeating("UpdateFrameCount", 0.03f, uiRefreshRate * 5);
+        InvokeRepeating("UpdateFrameCount", 0.03f, 0.075f);
     }
 
     private void Update()

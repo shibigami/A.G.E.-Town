@@ -1,6 +1,4 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 
 public class ThreadJob
 {
@@ -12,12 +10,13 @@ public class ThreadJob
         get
         {
             //create a lock to access isDone
-            bool tmp;
-            lock (handle)
-            {
-                tmp = isDone;
-            }
-            return tmp;
+            //bool tmp;
+            //lock (handle)
+            //{
+            //    tmp = isDone;
+            //}
+            //return tmp;
+            return isDone;
         }
         set
         {
@@ -71,7 +70,6 @@ public class ThreadJob
     private void Run()
     {
         ThreadFunction();
-        IsDone = true;
     }
 }
 
@@ -89,31 +87,51 @@ public class PathFindingJob : ThreadJob
 
     protected override void ThreadFunction()
     {
+        pathObtained = false;
         if (pathFinder == null) pathFinder = new PathFinder();
         path = pathFinder.FindPath(startNode, endNode);
-        pathObtained = false;
+        IsDone = true;
     }
     protected override void OnFinished()
     {
 
     }
 
+    public bool isPathNull()
+    {
+        return path == null;
+    }
+    public bool isPathZeroLength()
+    {
+        return path.Length > 0;
+    }
+
     public Node[] getPath()
     {
-        if (path == null)
+        if (path == null || path.Length == 0 || endNode == null || startNode == null)
         {
             return null;
         }
 
         //ensure there is a correct path
-        var endNodeSuccessfulluCalculated = (path[path.Length - 1].location - endNode.location).magnitude <= WorldMapNodes.NODEDISTANCE;
+        //var startNodeSuccessfullyCalculated = (startNode.location - path[0].location).magnitude <= WorldMapNodes.NODEDISTANCE * 1.25f;
+        //var endNodeSuccessfullyCalculated = (endNode.location - path[path.Length - 1].location).magnitude <= WorldMapNodes.NODEDISTANCE * 1.25f;
 
-        if (path[0].location == startNode.location && endNodeSuccessfulluCalculated)
-        {
-            pathObtained = true;
-            return path;
-        }
+        //if (startNodeSuccessfullyCalculated && endNodeSuccessfullyCalculated)
+        //{
+        pathObtained = true;
+        var temp = path;
+        path = null;
+        return temp;
+        //}
 
-        return null;
+        //return null;
+    }
+
+    public void SetEndFlag()
+    {
+        pathObtained = true;
+        path = null;
+        //Abort();
     }
 }

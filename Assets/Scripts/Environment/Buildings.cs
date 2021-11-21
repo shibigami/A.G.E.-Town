@@ -27,25 +27,25 @@ public class Buildings
         housesParent = GameObject.FindGameObjectWithTag(Constants.Tags.Houses.ToString());
         if (housesParent != null)
         {
-            houses = GetFacilityDictionary(housesParent, 3);
+            houses = GetFacilityDictionary(housesParent, Constants.CITIZENSPERHOME);
         }
 
         workParent = GameObject.FindGameObjectWithTag(Constants.Tags.WorkFacilities.ToString());
         if (workParent != null)
         {
-            workFacilities = GetFacilityDictionary(workParent, 15);
+            workFacilities = GetFacilityDictionary(workParent, Constants.CITIZENSPERWORK);
         }
 
         eatingParent = GameObject.FindGameObjectWithTag(Constants.Tags.EatingFacilities.ToString());
         if (eatingParent != null)
         {
-            eatingFacilities = GetFacilityDictionary(eatingParent, 25);
+            eatingFacilities = GetFacilityDictionary(eatingParent, Constants.CITIZENSPERFOOD);
         }
 
         entertainmentParent = GameObject.FindGameObjectWithTag(Constants.Tags.EntertainmentFacilities.ToString());
         if (entertainmentParent != null)
         {
-            entertainmentFacilities = GetFacilityDictionary(entertainmentParent, 8);
+            entertainmentFacilities = GetFacilityDictionary(entertainmentParent, Constants.CITIZENSPERENTERTAINMENT);
         }
     }
 
