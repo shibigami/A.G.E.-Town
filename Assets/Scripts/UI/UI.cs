@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 public class UI : MonoBehaviour
@@ -9,49 +10,75 @@ public class UI : MonoBehaviour
     public Text time;
     private WorldTime worldTime;
 
-    public GameObject CharacterSheetPanel;
+    public GameObject citizenInfoPanel;
+    public GameObject citizenContentPanel;
+    public GameObject citizenPanelPrefab;
+    private int citizenPanelUpdateIndex;
+    private bool citizenPanelPopulated;
+
+    public GameObject characterSheetPanel;
     public Text characterInfo;
     private GameObject targetCharacter;
+    public GameObject targetIndicator;
 
-    public GameObject CharacterSchedulePanel;
+    public GameObject characterSchedulePanel;
     public Text ageLabel;
-    public GameObject CharacterSchedule;
-    public GameObject FreeTime, WorkTime, SleepTime;
+    public GameObject characterSchedule;
+    public GameObject freeTime, workTime, sleepTime, selectedAction;
+    private Citizen.CitizenAction selectedScheduleAction;
+    private GameObject[] citizenScheduleSlices;
 
     public Text frameCountLabel;
+
+    private bool focusOnTarget;
+    public Vector3 cameraOffset;
+    public float cameraMovementSpeed;
 
     // Start is called before the first frame update
     void Start()
     {
+        targetIndicator.SetActive(false);
+
         worldTime = Constants.gameManager.worldTime;
         InvokeRepeating("UpdateWorldTime", 0.0f, uiRefreshRate);
 
-        CharacterSheetPanel.SetActive(false);
+        characterSheetPanel.SetActive(false);
         InvokeRepeating("UpdateCharacterSheet", 0.01f, uiRefreshRate);
 
-        CharacterSchedulePanel.SetActive(false);
+        characterSchedulePanel.SetActive(false);
         InvokeRepeating("UpdateCharacterSchedule", 0.02f, uiRefreshRate);
 
-        InvokeRepeating("UpdateFrameCount", 0.03f, 0.075f);
+        InvokeRepeating("UpdateFrameCount", 0.03f, 0.1f);
+
+        citizenInfoPanel.SetActive(false);
+        citizenPanelUpdateIndex = 0;
+        InvokeRepeating("UpdateCitizenPanels", 0.04f, uiRefreshRate);
+
+        focusOnTarget = false;
     }
 
-    private void Update()
+    private void FixedUpdate()
     {
-        if (targetCharacter != null)
+        if (targetCharacter != null && targetIndicator.activeSelf)
         {
-            var moveToPoints = targetCharacter.GetComponent<Citizen>().moveToPoints;
-
-            if (moveToPoints != null)
+            //target indicator
+            var tempVectorReposition = new Vector3();
+            if (targetCharacter.GetComponent<Citizen>().GetQueuedAction() == targetCharacter.GetComponent<Citizen>().GetCurrentAction())
             {
-                //draw path for debugging purposes
-                for (int i = 1; i < moveToPoints.Length; i++)
-                {
-                    var firstpoint = new Vector3(moveToPoints[i - 1].location.x, 1, moveToPoints[i - 1].location.y);
-                    var secondpoint = new Vector3(moveToPoints[i].location.x, 1, moveToPoints[i].location.y);
-                    Debug.DrawLine(firstpoint, secondpoint, Color.white);
-                }
+                tempVectorReposition = new Vector3(0, 3.0f, 0);
+            }
+
+            targetIndicator.transform.position = targetCharacter.transform.position + tempVectorReposition;
+
+            //camera focus
+            if (focusOnTarget)
+            {
+                Camera.main.transform.position = Vector3.MoveTowards(Camera.main.transform.position,
+                    targetCharacter.transform.position - new Vector3(0, targetCharacter.transform.position.y, 0) + new Vector3(0, Camera.main.transform.position.y, 0) + cameraOffset,
+                    Time.deltaTime * cameraMovementSpeed);
             }
         }
+
     }
 
     private void UpdateWorldTime()
@@ -63,6 +90,10 @@ public class UI : MonoBehaviour
     {
         var hours = Mathf.FloorToInt(worldTime.currentTime / 60);
         var minutes = worldTime.currentTime - hours * 60;
+        if (minutes == 60)
+        {
+            minutes = 0;
+        }
         return hours.ToString("00") + ":" + minutes.ToString("00");
     }
 
@@ -70,9 +101,24 @@ public class UI : MonoBehaviour
     {
         targetCharacter = target;
 
-        PopulateCharacterSchedule(targetCharacter.GetComponent<Citizen>());
+        targetIndicator.SetActive(true);
+
+        //close citizen list on citizen select
+        if (citizenInfoPanel.activeSelf)
+        {
+            citizenInfoPanel.SetActive(false);
+        }
+
+        ChangeOrPopulateCharacterSchedule(targetCharacter.GetComponent<Citizen>());
     }
 
+    public void DeselectCharacter()
+    {
+        targetCharacter = null;
+        targetIndicator.SetActive(false);
+    }
+
+    //not used anymore
     public void ClearSelectedCharacter()
     {
         if (targetCharacter != null)
@@ -83,18 +129,47 @@ public class UI : MonoBehaviour
         }
     }
 
+    public void UpdateCitizenPanel()
+    {
+        if (citizenContentPanel.transform.childCount != Constants.gameManager.citizens.Count)
+        {
+            citizenPanelPopulated = false;
+            foreach (Transform child in citizenContentPanel.transform)
+            {
+                Destroy(child);
+            }
+
+            for (int i = 0; i < Constants.gameManager.citizens.Count; i++)
+            {
+                var citizenPanel = Instantiate(citizenPanelPrefab, citizenContentPanel.transform);
+                citizenPanel.GetComponent<CitizenPanel>().SetTargetCitizen(Constants.gameManager.citizens[i]);
+            }
+        }
+        citizenPanelPopulated = true;
+    }
+
+    private void UpdateCitizenPanels()
+    {
+        if (/*!citizenContentPanel.activeSelf ||*/ !citizenPanelPopulated)
+        {
+            return;
+        }
+        citizenContentPanel.transform.GetChild(citizenPanelUpdateIndex).GetComponent<CitizenPanel>().UpdateUI();
+        citizenPanelUpdateIndex = citizenPanelUpdateIndex + 1 >= citizenContentPanel.transform.childCount ? 0 : citizenPanelUpdateIndex + 1;
+    }
+
     private void UpdateCharacterSheet()
     {
         if (targetCharacter == null || !targetCharacter.GetComponent<Citizen>())
         {
-            if (CharacterSheetPanel.activeSelf)
+            if (characterSheetPanel.activeSelf)
             {
-                CharacterSheetPanel.SetActive(false);
+                characterSheetPanel.SetActive(false);
             }
             return;
         }
 
-        CharacterSheetPanel.SetActive(true);
+        characterSheetPanel.SetActive(true);
 
         var citizen = targetCharacter.GetComponent<Citizen>();
 
@@ -118,7 +193,7 @@ public class UI : MonoBehaviour
     {
         if (targetCharacter != null)
         {
-            CharacterSchedulePanel.SetActive(true);
+            characterSchedulePanel.SetActive(true);
         }
     }
     public void SpeedUp(float time)
@@ -126,56 +201,185 @@ public class UI : MonoBehaviour
         Time.timeScale = time;
     }
 
+    //not used anymore
     private void ClearCharacterSchedule()
     {
-        foreach (Transform child in CharacterSchedule.transform)
+        foreach (Transform child in characterSchedule.transform)
         {
             Destroy(child.gameObject);
         }
     }
 
-    private void PopulateCharacterSchedule(Citizen citizen)
+    private void ChangeOrPopulateCharacterSchedule(Citizen citizen)
     {
-        foreach (var timeSlot in citizen.schedule.allocatedAction)
+        bool populate = false;
+        if (characterSchedule.transform.childCount <= 0)
         {
-            switch (timeSlot)
+            citizenScheduleSlices = new GameObject[citizen.schedule.allocatedAction.Length];
+            populate = true;
+        }
+
+        for (int timeSlot = 0; timeSlot < citizen.schedule.allocatedAction.Length; timeSlot++)
+        {
+            switch (citizen.schedule.allocatedAction[timeSlot])
             {
                 case (Citizen.CitizenAction.Sleep):
                     {
-                        GameObject.Instantiate(SleepTime, CharacterSchedule.transform);
+                        if (populate)
+                        {
+                            citizenScheduleSlices[timeSlot] = GameObject.Instantiate(sleepTime, characterSchedule.transform);
+                        }
+                        else
+                        {
+                            citizenScheduleSlices[timeSlot].GetComponent<RawImage>().color = sleepTime.GetComponent<RawImage>().color;
+                        }
                         break;
                     }
                 case (Citizen.CitizenAction.Work):
                     {
-                        GameObject.Instantiate(WorkTime, CharacterSchedule.transform);
+                        if (populate)
+                        {
+                            citizenScheduleSlices[timeSlot] = GameObject.Instantiate(workTime, characterSchedule.transform);
+                        }
+                        else
+                        {
+                            citizenScheduleSlices[timeSlot].GetComponent<RawImage>().color = workTime.GetComponent<RawImage>().color;
+                        }
                         break;
                     }
                 case (Citizen.CitizenAction.Play):
                     {
-                        GameObject.Instantiate(FreeTime, CharacterSchedule.transform);
+                        if (populate)
+                        {
+                            citizenScheduleSlices[timeSlot] = GameObject.Instantiate(freeTime, characterSchedule.transform);
+                        }
+                        else
+                        {
+                            citizenScheduleSlices[timeSlot].GetComponent<RawImage>().color = freeTime.GetComponent<RawImage>().color;
+                        }
                         break;
                     }
+            }
+
+            if (populate)
+            {
+                citizenScheduleSlices[timeSlot].GetComponent<ScheduleSlot>().SetTimeSliceUnit(timeSlot * Constants.TIMELSLICEUNIT);
+            }
+        }
+
+        if (!populate)
+        {
+            int slot = 0;
+            foreach (Transform trans in characterSchedule.transform)
+            {
+                if (trans.gameObject != citizenScheduleSlices[slot])
+                {
+                    trans.gameObject.GetComponent<RawImage>().color = citizenScheduleSlices[slot].GetComponent<RawImage>().color;
+                }
+                slot++;
             }
         }
     }
 
     private void UpdateCharacterSchedule()
     {
+        if (!characterSchedulePanel.activeSelf)
+        {
+            return;
+        }
+
         if (targetCharacter == null || !targetCharacter.GetComponent<Citizen>())
         {
-            if (CharacterSchedulePanel.activeSelf)
+            if (characterSchedulePanel.activeSelf)
             {
-                CharacterSchedulePanel.SetActive(false);
+                characterSchedulePanel.SetActive(false);
             }
 
             return;
         }
-        ageLabel.text = string.Format("{0} Days", targetCharacter.GetComponent<Citizen>().age);
+
+        ageLabel.text = string.Format("{0} Days", targetCharacter.GetComponent<Citizen>().GetAge());
+    }
+
+    public void SelectActionForSchedule(int actionSelected)
+    {
+        switch (actionSelected)
+        {
+            case 0:
+                {
+                    selectedScheduleAction = Citizen.CitizenAction.Sleep;
+                    selectedAction.GetComponent<RawImage>().color = sleepTime.GetComponent<RawImage>().color;
+                    break;
+                }
+            case 1:
+                {
+                    selectedScheduleAction = Citizen.CitizenAction.Work;
+                    selectedAction.GetComponent<RawImage>().color = workTime.GetComponent<RawImage>().color;
+                    break;
+                }
+            case 2:
+                {
+                    selectedScheduleAction = Citizen.CitizenAction.Play;
+                    selectedAction.GetComponent<RawImage>().color = freeTime.GetComponent<RawImage>().color;
+                    break;
+                }
+        }
+    }
+
+    public void ReplaceActionInScheduleForSelectedCharacter()
+    {
+        int index = -1;
+        for (int trans = 0; trans < characterSchedule.transform.childCount; trans++)
+        {
+            if (characterSchedule.transform.GetChild(trans) == UnityEngine.EventSystems.EventSystem.current.currentSelectedGameObject.transform)
+            {
+                index = trans;
+                break;
+            }
+        }
+
+        if (index == -1)
+        {
+            return;
+        }
+
+        switch (selectedScheduleAction)
+        {
+            case Citizen.CitizenAction.Sleep:
+                {
+                    targetCharacter.GetComponent<Citizen>().schedule.ReplaceInSchedule(Citizen.CitizenAction.Sleep, index);
+                    break;
+                }
+            case Citizen.CitizenAction.Work:
+                {
+                    targetCharacter.GetComponent<Citizen>().schedule.ReplaceInSchedule(Citizen.CitizenAction.Work, index);
+                    break;
+                }
+            case Citizen.CitizenAction.Play:
+                {
+                    targetCharacter.GetComponent<Citizen>().schedule.ReplaceInSchedule(Citizen.CitizenAction.Play, index);
+                    break;
+                }
+        }
+
+        ChangeOrPopulateCharacterSchedule(targetCharacter.GetComponent<Citizen>());
+    }
+
+    public void FocusOnCitizen()
+    {
+        if (targetCharacter == null)
+        {
+            focusOnTarget = false;
+            return;
+        }
+
+        focusOnTarget = !focusOnTarget;
     }
 
     void OnValidate()
     {
         uiRefreshRate = Mathf.Clamp(uiRefreshRate, 0.05f, 1f);
+        cameraMovementSpeed = Mathf.Clamp(cameraMovementSpeed, 0.5f, 50.0f);
     }
 
 }

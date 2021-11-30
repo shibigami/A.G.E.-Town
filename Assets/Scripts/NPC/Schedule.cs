@@ -41,6 +41,12 @@ public class Schedule
 
     public Citizen.CitizenAction getActionForTime(float timeInHours)
     {
+        var slot = Mathf.FloorToInt(timeInHours / Constants.TIMELSLICEUNIT);
         return allocatedAction[Mathf.FloorToInt(timeInHours / Constants.TIMELSLICEUNIT)];
+    }
+
+    public void ReplaceInSchedule(Citizen.CitizenAction newAction, int timeSlot) 
+    {
+        allocatedAction[timeSlot] = newAction;
     }
 }

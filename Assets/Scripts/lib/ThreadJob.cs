@@ -85,10 +85,14 @@ public class PathFindingJob : ThreadJob
     private Node[] path;
     public bool pathObtained;
 
-    protected override void ThreadFunction()
+    public PathFindingJob()
     {
         pathObtained = false;
-        if (pathFinder == null) pathFinder = new PathFinder();
+        pathFinder = new PathFinder();
+    }
+
+    protected override void ThreadFunction()
+    {
         path = pathFinder.FindPath(startNode, endNode);
         IsDone = true;
     }
@@ -103,7 +107,7 @@ public class PathFindingJob : ThreadJob
     }
     public bool isPathZeroLength()
     {
-        return path.Length > 0;
+        return path.Length <= 0;
     }
 
     public Node[] getPath()
@@ -114,18 +118,18 @@ public class PathFindingJob : ThreadJob
         }
 
         //ensure there is a correct path
-        //var startNodeSuccessfullyCalculated = (startNode.location - path[0].location).magnitude <= WorldMapNodes.NODEDISTANCE * 1.25f;
-        //var endNodeSuccessfullyCalculated = (endNode.location - path[path.Length - 1].location).magnitude <= WorldMapNodes.NODEDISTANCE * 1.25f;
+        var startNodeSuccessfullyCalculated = (startNode.location - path[0].location).magnitude <= WorldMapNodes.NODEDISTANCE * 2.0f;
+        var endNodeSuccessfullyCalculated = (endNode.location - path[path.Length - 1].location).magnitude <= WorldMapNodes.NODEDISTANCE * 2.0f;
 
-        //if (startNodeSuccessfullyCalculated && endNodeSuccessfullyCalculated)
-        //{
-        pathObtained = true;
-        var temp = path;
-        path = null;
-        return temp;
-        //}
+        if (startNodeSuccessfullyCalculated && endNodeSuccessfullyCalculated)
+        {
+            pathObtained = true;
+            var temp = path;
+            path = null;
+            return temp;
+        }
 
-        //return null;
+        return null;
     }
 
     public void SetEndFlag()

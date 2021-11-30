@@ -5,6 +5,7 @@ using UnityEngine;
 public class WorldTime
 {
     public float currentTime { get; private set; }
+    public int daysElapsed { get; private set; }
 
     public WorldTime()
     {
@@ -17,6 +18,7 @@ public class WorldTime
         currentTime += dt;
         if (currentTime >= 1440)
         {
+            daysElapsed++;
             currentTime = 0;
         }
     }

@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
+    private bool initialized;
+
     public float timeStep;
     public WorldTime worldTime { get; private set; }
     public WorldMapNodes worldMapNodes { get; private set; }
@@ -13,8 +15,19 @@ public class GameManager : MonoBehaviour
     private PathFindingJob[] pathFindingJobsPool;
     private int currentPathfindingIndex;
 
+    private bool canManipulateLists;
+
+    //public float decreaseNodesMoveCostInterval;
+    //private float nextNodeMoveCostDecreaseTime;
+
+    public List<Citizen> socialCitizens { get; private set; }
+    public List<Citizen> senders { get; private set; }
+    public List<Citizen> requesters { get; private set; }
+
     public void Awake()
     {
+        initialized = false;
+
         worldTime = new WorldTime();
         worldMapNodes = WorldMapNodes.Instance;
         worldMapNodes.CreateNodes();
@@ -22,10 +35,19 @@ public class GameManager : MonoBehaviour
         citizens = new List<GameObject>();
 
         QualitySettings.vSyncCount = 1;
+
+        canManipulateLists = true;
+
+        //nextNodeMoveCostDecreaseTime = Time.time + decreaseNodesMoveCostInterval;
     }
 
     public void Start()
     {
+        if (initialized)
+        {
+            return;
+        }
+
         //populate citizens list
         var citizenstemp = GameObject.FindGameObjectsWithTag(Constants.Tags.Player.ToString());
         foreach (GameObject cit in citizenstemp)
@@ -47,6 +69,12 @@ public class GameManager : MonoBehaviour
         //this should fix "waiting" citizens behavior
         pathFindingJobsPool = new PathFindingJob[citizens.Count * Constants.THREADSPERCITIZEN];
         currentPathfindingIndex = -1; //start at -1 due to initial increment
+
+        initialized = true;
+
+        socialCitizens = new List<Citizen>();
+        requesters = new List<Citizen>();
+        senders = new List<Citizen>();
     }
 
     private void FixedUpdate()
@@ -65,6 +93,11 @@ public class GameManager : MonoBehaviour
         }
 
         Time.timeScale = speedup ? 15 : 1;
+
+        //if (nextNodeMoveCostDecreaseTime < Time.time)
+        //{
+        //    DecreaseNodeCosts();
+        //}
     }
 
     public PathFindingJob PathFindingJobsPool
@@ -77,9 +110,113 @@ public class GameManager : MonoBehaviour
             currentPathfindingIndex = nextIndex;
             return pathFindingJobsPool[currentPathfindingIndex];
         }
-        set 
+        set
         {
             PathFindingJobsPool = value;
         }
+    }
+
+    private void DecreaseNodeCosts()
+    {
+        worldMapNodes.DecreaseNodeCosts();
+        //nextNodeMoveCostDecreaseTime = Time.time + decreaseNodesMoveCostInterval;
+    }
+
+    public void QueueCitizenForSocializing(Citizen target)
+    {
+        if (!socialCitizens.Contains(target))
+        {
+            socialCitizens.Add(target);
+        }
+    }
+
+    public void RemoveCitizenFromSocialQueue(Citizen target)
+    {
+        try
+        {
+            if (canManipulateLists)
+            {
+                canManipulateLists = false;
+                socialCitizens.Remove(target);
+                requesters.Remove(target);
+                senders.Remove(target);
+            }
+            canManipulateLists = true;
+        }
+        catch
+        {
+            canManipulateLists = true;
+        }
+    }
+
+    public bool CitizenAvailableForSocializingExists(Citizen requester)
+    {
+        var tempList = socialCitizens;
+        var available = tempList.Count;
+        for (int i = 0; i < socialCitizens.Count; i++)
+        {
+            if (socialCitizens[i] == requester)
+            {
+                available--;
+                continue;
+            }
+
+            if (requesters.Contains(socialCitizens[i]))
+            {
+                available--;
+            }
+            if (senders.Contains(socialCitizens[i]))
+            {
+                available--;
+            }
+        }
+
+        return available > 0;
+    }
+
+    public Citizen GetNextAvailableCitizenForSocializing(Citizen requester)
+    {
+        try
+        {
+            if (canManipulateLists)
+            {
+                canManipulateLists = false;
+                //go through list of requesters and return the associated sender
+                for (int request = 0; request < requesters.Count; request++)
+                {
+                    if (requesters[request] == requester)
+                    {
+                        senders[request].SetSocialResponseSuccess();
+                        canManipulateLists = true;
+                        return senders[request];
+                    }
+                }
+
+                foreach (var cit in socialCitizens)
+                {
+                    if (cit == requester)
+                    {
+                        continue;
+                    }
+
+                    if (cit.waitingForResponse)
+                    {
+                        senders.Add(cit);
+
+                        requester.SetSocialResponseSuccess();
+                        requesters.Add(requester);
+
+                        canManipulateLists = true;
+                        return cit;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            canManipulateLists = true;
+        }
+        canManipulateLists = true;
+        return null;
     }
 }
