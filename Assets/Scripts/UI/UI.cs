@@ -129,9 +129,18 @@ public class UI : MonoBehaviour
         }
     }
 
-    public void UpdateCitizenPanel()
+    public void populateCitizenPanel()
     {
-        if (citizenContentPanel.transform.childCount != Constants.gameManager.citizens.Count)
+        var enabledCitizens = 0;
+        foreach (var cit in Constants.gameManager.citizens)
+        {
+            if (cit.activeSelf) 
+            {
+                enabledCitizens++;
+            }
+        }
+
+        if (citizenContentPanel.transform.childCount != enabledCitizens)
         {
             citizenPanelPopulated = false;
             foreach (Transform child in citizenContentPanel.transform)
@@ -141,6 +150,11 @@ public class UI : MonoBehaviour
 
             for (int i = 0; i < Constants.gameManager.citizens.Count; i++)
             {
+                if (!Constants.gameManager.citizens[i].activeSelf) 
+                {
+                    continue;
+                }
+
                 var citizenPanel = Instantiate(citizenPanelPrefab, citizenContentPanel.transform);
                 citizenPanel.GetComponent<CitizenPanel>().SetTargetCitizen(Constants.gameManager.citizens[i]);
             }
@@ -376,10 +390,14 @@ public class UI : MonoBehaviour
         focusOnTarget = !focusOnTarget;
     }
 
+    public void SetSpeed(int value)
+    {
+        Constants.gameManager.timeStep = value;
+    }
+
     void OnValidate()
     {
         uiRefreshRate = Mathf.Clamp(uiRefreshRate, 0.05f, 1f);
         cameraMovementSpeed = Mathf.Clamp(cameraMovementSpeed, 0.5f, 50.0f);
     }
-
 }

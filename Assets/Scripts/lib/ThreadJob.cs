@@ -107,11 +107,13 @@ public class PathFindingJob : ThreadJob
     }
     public bool isPathZeroLength()
     {
-        return path.Length <= 0;
+        return path.Length <= 1;
     }
 
     public Node[] getPath()
     {
+        pathObtained = true;
+
         if (path == null || path.Length == 0 || endNode == null || startNode == null)
         {
             return null;
@@ -123,7 +125,6 @@ public class PathFindingJob : ThreadJob
 
         if (startNodeSuccessfullyCalculated && endNodeSuccessfullyCalculated)
         {
-            pathObtained = true;
             var temp = path;
             path = null;
             return temp;

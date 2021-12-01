@@ -20,9 +20,18 @@ public class GameManager : MonoBehaviour
     //public float decreaseNodesMoveCostInterval;
     //private float nextNodeMoveCostDecreaseTime;
 
+    //pool of awaiting citizens
     public List<Citizen> socialCitizens { get; private set; }
+    //pool of replied citizens
     public List<Citizen> senders { get; private set; }
+    //pool of citizens that made the request
     public List<Citizen> requesters { get; private set; }
+
+    public bool procriationOn;
+    public float oddsOfProcriating;
+    private List<bool> procriated;
+    private bool procriationForTheDayComplete;
+    private bool procriationListReset;
 
     public void Awake()
     {
@@ -37,6 +46,10 @@ public class GameManager : MonoBehaviour
         QualitySettings.vSyncCount = 1;
 
         canManipulateLists = true;
+
+        procriated = new List<bool>();
+        procriationForTheDayComplete = false;
+        procriationListReset = false;
 
         //nextNodeMoveCostDecreaseTime = Time.time + decreaseNodesMoveCostInterval;
     }
@@ -75,6 +88,13 @@ public class GameManager : MonoBehaviour
         socialCitizens = new List<Citizen>();
         requesters = new List<Citizen>();
         senders = new List<Citizen>();
+
+        //setup aging scene
+        if (procriationOn)
+        {
+            SetupAging();
+            ResetProcriationList();
+        }
     }
 
     private void FixedUpdate()
@@ -98,6 +118,39 @@ public class GameManager : MonoBehaviour
         //{
         //    DecreaseNodeCosts();
         //}
+
+        if (procriationOn)
+        {
+            if (procriated.Contains(false))
+            {
+                if (worldTime.GetCurrentWorldTimeInHours() < 12)
+                {
+                    for (int i = 0; i < procriated.Count; i++)
+                    {
+                        if (!procriated[i] && RollForProcriation())
+                        {
+                            Procriate();
+                        }
+
+                        procriated[i] = true;
+                    }
+                }
+                procriationForTheDayComplete = true;
+                procriationListReset = false;
+            }
+            else
+            {
+                if (worldTime.GetCurrentWorldTimeInHours() > 12)
+                {
+                    //if (!procriationListReset)
+                    //{
+                        ResetProcriationList();
+                        procriationListReset = true;
+                    //}
+                    procriationForTheDayComplete = false;
+                }
+            }
+        }
     }
 
     public PathFindingJob PathFindingJobsPool
@@ -151,8 +204,7 @@ public class GameManager : MonoBehaviour
 
     public bool CitizenAvailableForSocializingExists(Citizen requester)
     {
-        var tempList = socialCitizens;
-        var available = tempList.Count;
+        var available = socialCitizens.Count;
         for (int i = 0; i < socialCitizens.Count; i++)
         {
             if (socialCitizens[i] == requester)
@@ -161,14 +213,14 @@ public class GameManager : MonoBehaviour
                 continue;
             }
 
-            if (requesters.Contains(socialCitizens[i]))
-            {
-                available--;
-            }
-            if (senders.Contains(socialCitizens[i]))
-            {
-                available--;
-            }
+            //if (requesters.Contains(socialCitizens[i]))
+            //{
+            //    available--;
+            //}
+            //if (senders.Contains(socialCitizens[i]))
+            //{
+            //    available--;
+            //}
         }
 
         return available > 0;
@@ -188,6 +240,8 @@ public class GameManager : MonoBehaviour
                     {
                         senders[request].SetSocialResponseSuccess();
                         canManipulateLists = true;
+                        socialCitizens.Remove(senders[request]);
+                        socialCitizens.Remove(requester);
                         return senders[request];
                     }
                 }
@@ -207,6 +261,8 @@ public class GameManager : MonoBehaviour
                         requesters.Add(requester);
 
                         canManipulateLists = true;
+                        socialCitizens.Remove(cit);
+                        socialCitizens.Remove(requester);
                         return cit;
                     }
                 }
@@ -218,5 +274,145 @@ public class GameManager : MonoBehaviour
         }
         canManipulateLists = true;
         return null;
+    }
+
+    private void SetupAging()
+    {
+        foreach (var cit in citizens)
+        {
+            cit.gameObject.SetActive(false);
+        }
+        foreach (var home in buildings.houses.Keys)
+        {
+            home.gameObject.SetActive(false);
+        }
+        foreach (var entertainment in buildings.entertainmentFacilities.Keys)
+        {
+            entertainment.gameObject.SetActive(false);
+        }
+        foreach (var eating in buildings.eatingFacilities.Keys)
+        {
+            eating.gameObject.SetActive(false);
+        }
+        foreach (var work in buildings.eatFacilities.Keys)
+        {
+            work.gameObject.SetActive(false);
+        }
+
+        Procriate();
+        Procriate();
+    }
+
+    public void Procriate()
+    {
+        bool home = false;
+        bool work = false;
+        bool eat = false;
+        bool entertainment = false;
+        foreach (var cit in citizens)
+        {
+            //citizen
+            if (!cit.gameObject.activeSelf)
+            {
+                //home
+                foreach (var house in buildings.houses.Keys)
+                {
+                    foreach (var houseCit in buildings.houses[house])
+                    {
+                        if (houseCit == cit)
+                        {
+                            house.SetActive(true);
+                            home = true;
+                            break;
+                        }
+                    }
+                    if (home)
+                    {
+                        break;
+                    }
+                }
+                //work
+                foreach (var workF in buildings.eatFacilities.Keys)
+                {
+                    foreach (var workCit in buildings.eatFacilities[workF])
+                    {
+                        if (workCit == cit)
+                        {
+                            workF.SetActive(true);
+                            home = true;
+                            break;
+                        }
+                    }
+                    if (work)
+                    {
+                        break;
+                    }
+                }
+                //eat
+                foreach (var eatF in buildings.eatFacilities.Keys)
+                {
+                    foreach (var eatCit in buildings.eatFacilities[eatF])
+                    {
+                        if (eatCit == cit)
+                        {
+                            eatF.SetActive(true);
+                            eat = true;
+                            break;
+                        }
+                    }
+                    if (eat)
+                    {
+                        break;
+                    }
+                }
+                //entertainment
+                foreach (var enterF in buildings.entertainmentFacilities.Keys)
+                {
+                    foreach (var enterCit in buildings.entertainmentFacilities[enterF])
+                    {
+                        if (enterCit == cit)
+                        {
+                            enterF.SetActive(true);
+                            entertainment = true;
+                            break;
+                        }
+                    }
+                    if (entertainment)
+                    {
+                        break;
+                    }
+                }
+                cit.gameObject.SetActive(true);
+                break;
+            }
+        }
+    }
+
+    private void ResetProcriationList()
+    {
+        procriated = new List<bool>();
+        var amount = 0;
+        foreach (var cit in citizens)
+        {
+            if (!cit.activeSelf)
+            {
+                continue;
+            }
+            if (cit.GetComponent<Citizen>().GetAge() >= cit.GetComponent<Citizen>().ageForMaxGrowth)
+            {
+                amount++;
+            }
+        }
+
+        amount = Mathf.FloorToInt(amount);
+        for (int i = 0; i < amount; i++)
+        {
+            procriated.Add(false);
+        }
+    }
+
+    private bool RollForProcriation()
+    {
+        return Random.Range(1, 100) <= oddsOfProcriating;
     }
 }

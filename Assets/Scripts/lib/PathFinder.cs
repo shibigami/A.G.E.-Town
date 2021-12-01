@@ -81,12 +81,16 @@ public class PathFinder
                 break;
             }
 
-            //check neighbours
-            Vector2[] directions = new Vector2[4] {
+            //check neighbours in 8 directions
+            Vector2[] directions = new Vector2[8] {
                 new Vector2(WorldMapNodes.NODEDISTANCE,0),
                 new Vector2(-WorldMapNodes.NODEDISTANCE,0),
                 new Vector2(0,WorldMapNodes.NODEDISTANCE),
-                new Vector2(0,-WorldMapNodes.NODEDISTANCE)
+                new Vector2(0,-WorldMapNodes.NODEDISTANCE),
+                new Vector2(WorldMapNodes.NODEDISTANCE,WorldMapNodes.NODEDISTANCE),
+                new Vector2(WorldMapNodes.NODEDISTANCE,-WorldMapNodes.NODEDISTANCE),
+                new Vector2(-WorldMapNodes.NODEDISTANCE,WorldMapNodes.NODEDISTANCE),
+                new Vector2(-WorldMapNodes.NODEDISTANCE,-WorldMapNodes.NODEDISTANCE)
             };
 
             for (int i = 0; i < directions.Length; i++)

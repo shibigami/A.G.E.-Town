@@ -5,11 +5,11 @@ using UnityEngine;
 public static class Constants
 {
     public const float TIMELSLICEUNIT = 0.25f;
-    public const int THREADSPERCITIZEN = 2;
+    public const int THREADSPERCITIZEN = 1;
     public const int CITIZENLOADTIME = 1;
 
     public const int CITIZENSPERHOME = 2;
-    public const int CITIZENSPERWORK = 10;
+    public const int CITIZENSPERWORK = 13;
     public const int CITIZENSPERFOOD = 10;
     public const int CITIZENSPERENTERTAINMENT = 10;
 

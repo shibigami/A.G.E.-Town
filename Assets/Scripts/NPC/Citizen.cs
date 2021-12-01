@@ -28,7 +28,7 @@ public class Citizen : MonoBehaviour
     public enum SocializeStates
     {
         Move,
-        Wait,
+        Reposition,
         Talk,
         None
     }
@@ -54,9 +54,12 @@ public class Citizen : MonoBehaviour
     private int pathIndex;
     private bool needsPathing;
 
+    public float oddsOfSocializing;
     public SocializeStates socializingState { get; private set; }
     private bool needsEmptyPoint;
     public bool waitingForResponse { get; private set; }
+    public float secondsForBreakoutIfWaitingForPath;
+    private float breakoutFromWaitingForPathTick;
     //social point is also used as a flag for when socializing point is needed
     //it is discarded (set to null) when after reaching it
     public Node socialPoint { get; private set; }
@@ -73,6 +76,13 @@ public class Citizen : MonoBehaviour
     [Tooltip("Lower and Upper limit of randomized social time")]
     public Vector2 socialTimeRange;
     private float socialTimeTick;
+    public GameObject bubble;
+    private bool socialCitizenNearby;
+
+    public float birthSize;
+    public float maxSize;
+    public int ageForMaxGrowth;
+    private bool grewToday;
 
     private UI ui;
 
@@ -110,6 +120,9 @@ public class Citizen : MonoBehaviour
         needsEmptyPoint = false;
         waitingForResponse = false;
         distanceRatio = 0.1f;
+        bubble.SetActive(false);
+
+        grewToday = false;
 
         //ui controls
         ui = GameObject.FindGameObjectWithTag("GameController").GetComponent<UI>();
@@ -180,6 +193,19 @@ public class Citizen : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
+        if (Constants.gameManager.procriationOn)
+        {
+            if (!grewToday && worldTime.GetCurrentWorldTimeInHours() < 12.0f)
+            {
+                Grow();
+                grewToday = true;
+            }
+            if (worldTime.GetCurrentWorldTimeInHours() > 12.0f)
+            {
+                grewToday = false;
+            }
+        }
+
         if (needs == null)
         {
             needs = new Needs();
@@ -223,8 +249,8 @@ public class Citizen : MonoBehaviour
                     if (queuedAction == CitizenAction.Play && !waitingForResponse && socialRollTick < Time.time)
                     {
                         //roll for socializing
-                        var roll = Random.Range(0, 99);
-                        if (roll >= 90)
+                        var roll = Random.Range(1, 100);
+                        if (roll >= oddsOfSocializing)
                         {
                             waitingForResponse = true;
                             Constants.gameManager.QueueCitizenForSocializing(this);
@@ -236,10 +262,12 @@ public class Citizen : MonoBehaviour
                     {
                         if (Constants.gameManager.CitizenAvailableForSocializingExists(this))
                         {
+                            moveToPoints = null;
+                            pathIndex = 0;
                             needsEmptyPoint = true;
                             myState = CitizenStates.Socialize;
                             socializingState = SocializeStates.Move;
-                            pathIndex = 0;
+                            breakoutFromWaitingForPathTick = Time.time + secondsForBreakoutIfWaitingForPath;
                             break;
                         }
                     }
@@ -258,7 +286,7 @@ public class Citizen : MonoBehaviour
                         needsPathing = true;
 
                         //check if there is a correct path
-                        if (moveToPoints != null && moveToPoints.Length > 0)
+                        if (moveToPoints != null && moveToPoints.Length > 1)
                         {
                             var startNode = new Vector2(Mathf.FloorToInt(transform.position.x / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE,
                                 Mathf.FloorToInt(transform.position.z / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE);
@@ -300,7 +328,7 @@ public class Citizen : MonoBehaviour
                     if (distanceToPoint.magnitude > 0.2f)
                     {
                         var targetPoint = new Vector3(moveToPoints[pathIndex].location.x, transform.position.y, moveToPoints[pathIndex].location.y);
-                        transform.position = Vector3.MoveTowards(transform.position, targetPoint, Time.deltaTime * movementSpeed);
+                        transform.position = Vector3.MoveTowards(transform.position, targetPoint, GetMovementSpeed());
                         transform.LookAt(targetPoint);
                     }
                     //reached point
@@ -311,10 +339,17 @@ public class Citizen : MonoBehaviour
                         //reached end
                         if (moveToPoints.Length - 1 < pathIndex)
                         {
-                            moveToPoints = null;
-
-                            currentAction = CitizenAction.GoInside;
-                            myState = CitizenStates.Action;
+                            //moveToPoints = null;
+                            var myLocation = new Vector2(transform.position.x, transform.position.z);
+                            if ((GetNodeBasedOnAction().location - myLocation).magnitude < 2.0f)
+                            {
+                                currentAction = CitizenAction.GoInside;
+                                myState = CitizenStates.Action;
+                            }
+                            else 
+                            {
+                                ResetToWait();
+                            }
                         }
                     }
                     break;
@@ -331,7 +366,7 @@ public class Citizen : MonoBehaviour
 
                                 var targetPosition = actionObject.transform.parent.transform.position;
                                 targetPosition.y = transform.position.y;
-                                transform.position = Vector3.MoveTowards(transform.position, targetPosition, Time.deltaTime * movementSpeed);
+                                transform.position = Vector3.MoveTowards(transform.position, targetPosition, GetMovementSpeed());
 
                                 transform.LookAt(targetPosition);
 
@@ -374,18 +409,20 @@ public class Citizen : MonoBehaviour
                 }
             case CitizenStates.Socialize:
                 {
-                    //figure out a way to escape here
-                    //check every world time slice for a new task if not play?
-                    //set a time limit for socializing?
-
                     switch (socializingState)
                     {
                         case SocializeStates.Move:
                             {
                                 needsEmptyPoint = moveToPoints == null;
                                 needsPathing = false;
-                                if (moveToPoints == null)
+                                if (Time.time > breakoutFromWaitingForPathTick)
                                 {
+                                    ResetToWait();
+                                    break;
+                                }
+                                if (moveToPoints == null || moveToPoints.Length == 0)
+                                {
+                                    needsPathing = true;
                                     break;
                                 }
 
@@ -399,7 +436,7 @@ public class Citizen : MonoBehaviour
                                     //socialPoint = null;
                                     distanceRatio = 0.25f;
                                     finalGatheringPointSet = false;
-                                    socializingState = SocializeStates.Wait;
+                                    socializingState = SocializeStates.Reposition;
                                     break;
                                 }
 
@@ -417,11 +454,12 @@ public class Citizen : MonoBehaviour
                                 //reached point
                                 else
                                 {
-                                    pathIndex++;
+                                    if (pathIndex < moveToPoints.Length)
+                                        pathIndex++;
                                 }
                                 break;
                             }
-                        case SocializeStates.Wait:
+                        case SocializeStates.Reposition:
                             {
                                 //do not move if already in place - should avoid citizen scramble mosh pit
                                 Walk(false);
@@ -481,7 +519,7 @@ public class Citizen : MonoBehaviour
                                     socialTimeTick = Time.time + (Random.Range(socialTimeRange.x, socialTimeRange.y) * Constants.TIMELSLICEUNIT) / Time.timeScale * Constants.gameManager.timeStep;
 
                                     //get closest citizen to look at
-                                    var colliders = Physics.OverlapSphere(transform.position, 10.0f);
+                                    var colliders = Physics.OverlapSphere(transform.position, 2.0f);
                                     foreach (var col in colliders)
                                     {
                                         if (col.gameObject != gameObject &&
@@ -491,6 +529,8 @@ public class Citizen : MonoBehaviour
                                             if ((col.gameObject.transform.position - transform.position).magnitude < (transform.position - lookAtPoint).magnitude)
                                             {
                                                 lookAtPoint = col.gameObject.transform.position;
+                                                socialCitizenNearby = true;
+                                                break;
                                             }
                                         }
                                     }
@@ -500,6 +540,14 @@ public class Citizen : MonoBehaviour
                             }
                         case SocializeStates.Talk:
                             {
+                                if (socialCitizenNearby)
+                                {
+                                    if (!bubble.activeSelf)
+                                    {
+                                        bubble.SetActive(true);
+                                    }
+                                }
+
                                 Walk(false);
 
                                 transform.LookAt(lookAtPoint);
@@ -508,10 +556,7 @@ public class Citizen : MonoBehaviour
 
                                 if ((transform.position - lookAtPoint).magnitude > 2.0f || Time.time > socialTimeTick || timeAction != CitizenAction.Play)
                                 {
-                                    finalGatheringPointSet = false;
-                                    waitingForResponse = false;
-                                    Constants.gameManager.RemoveCitizenFromSocialQueue(this);
-                                    myState = CitizenStates.Waiting;
+                                    ResetToWait();
                                 }
 
                                 break;
@@ -532,15 +577,24 @@ public class Citizen : MonoBehaviour
         }
     }
 
-    //public void OnCollisionEnter(Collision collision)
-    //{
-    //    if (collision.transform.tag != Constants.Tags.Player.ToString() && collision.transform.GetComponent<Terrain>())
-    //    {
-    //        myState = CitizenStates.Waiting;
-    //        moveToPoints = null;
-    //        queuedAction = CitizenAction.None;
-    //    }
-    //}
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.transform.tag != Constants.Tags.Player.ToString() && !collision.transform.GetComponent<Terrain>())
+        {
+            ResetToWait();
+        }
+    }
+
+    private void ResetToWait()
+    {
+        finalGatheringPointSet = false;
+        waitingForResponse = false;
+        needsPathing = false;
+        Constants.gameManager.RemoveCitizenFromSocialQueue(this);
+        myState = CitizenStates.Waiting;
+        bubble.SetActive(false);
+        socialCitizenNearby = false;
+    }
 
     private void Walk(bool walk)
     {
@@ -588,6 +642,10 @@ public class Citizen : MonoBehaviour
 
     public int GetAge()
     {
+        if (worldTime == null)
+        {
+            return 0;
+        }
         return worldTime.daysElapsed - birthDay;
     }
 
@@ -617,10 +675,45 @@ public class Citizen : MonoBehaviour
         lookAtPoint = point;
     }
 
+    private void OnEnable()
+    {
+        if (worldTime == null || !Constants.gameManager.procriationOn)
+        {
+            return;
+        }
+        birthDay = worldTime.daysElapsed;
+        transform.localScale = new Vector3(birthSize, birthSize, birthSize);
+    }
+
+    private void Grow()
+    {
+        //if (!Constants.gameManager.procriationOn || transform.localScale.x>=maxSize)
+        //{
+        //    return;
+        //}
+        var newSize = Mathf.Clamp(GetGrowthPerDay() * GetAge(), birthSize, maxSize);
+        transform.localScale = Vector3.one * newSize;
+        if (transform.localScale.x >= maxSize)
+        {
+            schedule.SetScheduleForAdult();
+        }
+    }
+
+    private float GetGrowthPerDay()
+    {
+        return (maxSize - birthSize) / ageForMaxGrowth;
+    }
+
     private void OnValidate()
     {
+        oddsOfSocializing = Mathf.Clamp(oddsOfSocializing, 0, 100);
         socialRollTime = Mathf.Clamp(socialRollTime, 0.2f, 2.0f);
         socialTimeRange = new Vector2(Mathf.Clamp(socialTimeRange.x, 1.0f, socialTimeRange.x),
             Mathf.Clamp(socialTimeRange.y, socialTimeRange.x, float.MaxValue));
+        secondsForBreakoutIfWaitingForPath = Mathf.Clamp(secondsForBreakoutIfWaitingForPath, 5, 40);
+
+        birthSize = Mathf.Clamp(birthSize, 0.2f, 2.0f);
+        maxSize = Mathf.Clamp(maxSize, birthSize, 2.0f);
+        ageForMaxGrowth = Mathf.Clamp(ageForMaxGrowth, 1, 18);
     }
 }

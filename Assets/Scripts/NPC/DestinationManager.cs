@@ -27,11 +27,11 @@ public class DestinationManager : MonoBehaviour
         }
         citizens = tempCitizenList.ToArray();
 
-        pathFindingJob = new PathFindingJob[citizens.Length, Constants.THREADSPERCITIZEN];
         moveToPoints = new Node[citizens.Length];
         currentTaskCitizenIndex = 0;
 
         //pathfinder
+        pathFindingJob = new PathFindingJob[citizens.Length, Constants.THREADSPERCITIZEN];
         isCalculatingPath = new bool[citizens.Length, Constants.THREADSPERCITIZEN];
         for (int denizen = 0; denizen < isCalculatingPath.GetLength(0); denizen++)
         {
@@ -46,7 +46,7 @@ public class DestinationManager : MonoBehaviour
     void FixedUpdate()
     {
         //move on to path processing handling if coroutine is not running
-        if (!pathProcessingCoroutineRunning)
+        if (!pathProcessingCoroutineRunning && citizens.Length > 0)
         {
             //go to next citizen in queue
             if (currentTaskCitizenIndex + 1 >= citizens.Length)

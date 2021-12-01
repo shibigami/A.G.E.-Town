@@ -15,7 +15,7 @@ public class Buildings
     public GameObject housesParent { get; private set; }
     public Dictionary<GameObject, GameObject[]> houses { get; private set; }
     public GameObject workParent { get; private set; }
-    public Dictionary<GameObject, GameObject[]> workFacilities { get; private set; }
+    public Dictionary<GameObject, GameObject[]> eatFacilities { get; private set; }
     public GameObject eatingParent { get; private set; }
     public Dictionary<GameObject, GameObject[]> eatingFacilities { get; private set; }
     public GameObject entertainmentParent { get; private set; }
@@ -33,7 +33,7 @@ public class Buildings
         workParent = GameObject.FindGameObjectWithTag(Constants.Tags.WorkFacilities.ToString());
         if (workParent != null)
         {
-            workFacilities = GetFacilityDictionary(workParent, Constants.CITIZENSPERWORK);
+            eatFacilities = GetFacilityDictionary(workParent, Constants.CITIZENSPERWORK);
         }
 
         eatingParent = GameObject.FindGameObjectWithTag(Constants.Tags.EatingFacilities.ToString());
@@ -134,7 +134,7 @@ public class Buildings
                 }
             case FacilityTypes.Work:
                 {
-                    return workFacilities;
+                    return eatFacilities;
                 }
             case FacilityTypes.Eat:
                 {
@@ -157,7 +157,7 @@ public class Buildings
         {
             case FacilityTypes.Work:
                 {
-                    workFacilities = facilityDictionary;
+                    eatFacilities = facilityDictionary;
                     success = true;
                     break;
                 }
