@@ -12,10 +12,61 @@ public class Schedule
         dayProgress = new float[Mathf.CeilToInt(24 / Constants.TIMELSLICEUNIT)];
         allocatedAction = new Citizen.CitizenAction[dayProgress.Length];
 
+        if (Constants.gameManager.procriationOn)
+        {
+            SetScheduleForChild();
+        }
+        else 
+        {
+            SetScheduleForAdult();
+        }
+    }
+
+    public Citizen.CitizenAction getActionForTime(float timeInHours)
+    {
+        var slot = Mathf.FloorToInt(timeInHours / Constants.TIMELSLICEUNIT);
+        return allocatedAction[Mathf.FloorToInt(timeInHours / Constants.TIMELSLICEUNIT)];
+    }
+
+    public void ReplaceInSchedule(Citizen.CitizenAction newAction, int timeSlot)
+    {
+        allocatedAction[timeSlot] = newAction;
+    }
+
+    public void SetScheduleForChild()
+    {
         //initial setup of schedule
-        //working hours: 9-17
-        //sleeping hours: 23-7
-        //free time: 7-9, 17-23
+        //sleeping hours: 8
+        //free time: 16
+        for (int i = 0; i < dayProgress.Length; i++)
+        {
+            dayProgress[i] = 0;
+
+            //initialize
+            var action = Citizen.CitizenAction.Play;
+
+            if ((i >= 0 && i < 7 / Constants.TIMELSLICEUNIT) || (i >= 23 / Constants.TIMELSLICEUNIT))
+            {
+                action = Citizen.CitizenAction.Sleep;
+            }
+            else if ((i >= 7 / Constants.TIMELSLICEUNIT && i < 23 / Constants.TIMELSLICEUNIT))
+            {
+                action = Citizen.CitizenAction.Play;
+            }
+
+            allocatedAction[i] = action;
+        }
+    }
+
+    public void SetScheduleForAdult()
+    {
+        //initial setup of schedule
+        //working hours: 8
+        //sleeping hours: 8
+        //free time: 8
+
+        int workStartTime = Random.Range(7, 15);
+
         for (int i = 0; i < dayProgress.Length; i++)
         {
             dayProgress[i] = 0;
@@ -26,21 +77,16 @@ public class Schedule
             {
                 action = Citizen.CitizenAction.Sleep;
             }
-            else if (i >= 9 / Constants.TIMELSLICEUNIT && i < 17 / Constants.TIMELSLICEUNIT)
+            else if (i >= workStartTime / Constants.TIMELSLICEUNIT && i < (workStartTime + 8) / Constants.TIMELSLICEUNIT)
             {
                 action = Citizen.CitizenAction.Work;
             }
-            else if ((i >= 7 / Constants.TIMELSLICEUNIT && i < 9 / Constants.TIMELSLICEUNIT) || (i >= 17 / Constants.TIMELSLICEUNIT && i < 23 / Constants.TIMELSLICEUNIT))
+            else if ((i >= 7 / Constants.TIMELSLICEUNIT && i < workStartTime / Constants.TIMELSLICEUNIT) || (i >= (workStartTime + 8) / Constants.TIMELSLICEUNIT && i < 23 / Constants.TIMELSLICEUNIT))
             {
                 action = Citizen.CitizenAction.Play;
             }
 
             allocatedAction[i] = action;
         }
-    }
-
-    public Citizen.CitizenAction getActionForTime(float timeInHours)
-    {
-        return allocatedAction[Mathf.FloorToInt(timeInHours / Constants.TIMELSLICEUNIT)];
     }
 }

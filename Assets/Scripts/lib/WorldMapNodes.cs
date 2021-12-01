@@ -1,10 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class WorldMapNodes
 {
-    public const float NODEDISTANCE = 1.0f;
-    public const float MAXDISTANCEFORSEARCH = 100f;
+    public const float NODEDISTANCE = 0.5f;
+    public const float MAXDISTANCEFORSEARCH = 200f;
     public const float DEFAULTMOVECOST = 1.0f;
 
     private static Dictionary<Vector2, Node> nodes;
@@ -30,6 +31,7 @@ public class WorldMapNodes
     public void CreateNodes()
     {
         nodes.Clear();
+        //commented out code places sphere in node so that blocked nodes can be visualized
         //var pri = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         //pri.transform.localScale = Vector3.one / 10;
         for (float x = -MAXDISTANCEFORSEARCH; x < MAXDISTANCEFORSEARCH; x += NODEDISTANCE)
@@ -72,9 +74,21 @@ public class WorldMapNodes
 
     public Node getNodeAt(Vector2 position)
     {
+        var result = new Node();
+
         try
         {
-            return nodes[position];
+            nodes.TryGetValue(position, out result);
+
+            if (result == null)
+            {
+                var fixedPosition = new Vector2(Mathf.FloorToInt(position.x / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE,
+                Mathf.FloorToInt(position.y / WorldMapNodes.NODEDISTANCE) * WorldMapNodes.NODEDISTANCE);
+
+                result = nodes[fixedPosition];
+            }
+
+            return result;
         }
         catch
         {
@@ -82,12 +96,45 @@ public class WorldMapNodes
         }
     }
 
-    public void UpdateNode(Vector2 nodeLocation, Node start, Node end, float moveCost)
+    public Node getAvailableNodeBetween(Node firstNode, Node secondNode)
     {
-        nodes[nodeLocation].SetStartEndNodes(start.location, end.location, WorldMapNodes.DEFAULTMOVECOST);
+        var midpoint = firstNode.location + (secondNode.location - firstNode.location) / 2.0f;
+        var midpointNode = getNodeAt(midpoint);
+
+        if (midpointNode == null)
+        {
+            return null;
+        }
+
+        var direction = new Vector2(NODEDISTANCE, 0);
+        var range = 1;
+        while (midpointNode == null)
+        {
+            //search around
+            midpointNode = getNodeAt(midpointNode.location + direction);
+
+            direction = direction.x > 0 ? new Vector2(0, NODEDISTANCE * range) :
+                direction.y > 0 ? new Vector2(NODEDISTANCE * range, 0) : new Vector2(NODEDISTANCE * range, NODEDISTANCE * range);
+            range++;
+        }
+
+        return midpointNode;
     }
 
-    public bool isMapComplete() 
+    public void UpdateNode(Vector2 nodeLocation, Node start, Node end)
+    {
+        nodes[nodeLocation].SetStartEndNodes(start.location, end.location);
+    }
+
+    public void DecreaseNodeCosts()
+    {
+        foreach (var node in nodes.Values)
+        {
+            node.RemoveFromCost();
+        }
+    }
+
+    public bool isMapComplete()
     {
         return mapComplete;
     }
